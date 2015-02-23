@@ -116,8 +116,12 @@ func saw(c net.Conn) {
 					},
 				}
 
-				resp.ReturnHTML("hello, world!")
-
+				resp.Headers["Content-Type"] = "text/html"
+				resp.Output([]byte("hello, world!"))
+				
+				if !resp.async {
+					resp.End()
+				}
 			}else{
 				c.Close()
 			}
@@ -148,8 +152,8 @@ type Response struct{
 	//////////////////////////
 	conn net.Conn
 	ver []byte
-	ret bool
 	async bool
+	hed bool
 }
 
 func (resp Response) writeHeader(content string) {
@@ -157,7 +161,7 @@ func (resp Response) writeHeader(content string) {
 	resp.conn.Write(crlf)
 }
 
-func (resp Response) writeLahs() {
+func (resp Response) writeHeaders() {
 	// line
 	resp.conn.Write(resp.ver) // HTTP version
 	resp.conn.Write(space)
@@ -171,23 +175,20 @@ func (resp Response) writeLahs() {
 	resp.conn.Write(crlf) // headers end
 }
 
-func (resp Response) write(content []byte) { // write chunk
+func (resp Response) Output(content []byte) { // write chunk
+	if !resp.hed {
+		resp.hed = true
+		resp.writeHeaders()
+	}
 	resp.conn.Write([]byte(strconv.FormatUint(uint64(len(content)), 16))) // size
 	resp.conn.Write(crlf) // size end
 	resp.conn.Write(content) // data
 	resp.conn.Write(crlf) // data end
 }
 
-func (resp Response) close(){
+func (resp Response) End(){
 	resp.conn.Write(lastChunkAndChunkedBodyEnd) // last-chunk + Chunked-Body end
 	resp.conn.Close()
-}
-
-func (resp Response) ReturnHTML(html string) {
-	resp.Headers["Content-Type"] = "text/html"
-	resp.writeLahs()
-	resp.write([]byte(html))
-	resp.close()
 }
 
 func (resp Response) Async(){
