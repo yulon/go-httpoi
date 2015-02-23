@@ -69,7 +69,7 @@ func saw(c net.Conn) {
 							tmp = nil
 						}
 					case '\r':
-						req.Version = string(tmp)
+						req.Protocol = string(tmp)
 						i++
 						break m
 					default:
@@ -77,7 +77,7 @@ func saw(c net.Conn) {
 				}
 			}
 
-			if req.Version[:4] == "HTTP" {
+			if len(req.Protocol) < 4 && req.Protocol[:4] == "HTTP" { // Is HTTP
 				tmp = nil
 				var name string
 
@@ -105,7 +105,7 @@ func saw(c net.Conn) {
 				}
 
 				resp := &Response{
-					ver: []byte(req.Version),
+					protocol: []byte(req.Protocol),
 					conn: c,
 					StatusCode: 200,
 					Headers: map[string]string{
@@ -137,7 +137,7 @@ type route map[string]Handler
 
 type Request struct{
 	Method string
-	Version string
+	Protocol string
 	Url string
 	Path string
 	PathParam map[string]string
@@ -151,7 +151,7 @@ type Response struct{
 	Headers map[string]string
 	//////////////////////////
 	conn net.Conn
-	ver []byte
+	protocol []byte
 	async bool
 	hed bool
 }
@@ -163,7 +163,7 @@ func (resp Response) writeHeader(content string) {
 
 func (resp Response) writeHeaders() {
 	// line
-	resp.conn.Write(resp.ver) // HTTP version
+	resp.conn.Write(resp.protocol) // Protocol version
 	resp.conn.Write(space)
 	resp.conn.Write(responseLineList[resp.StatusCode]) // status code
 	resp.conn.Write(crlf) // line end
