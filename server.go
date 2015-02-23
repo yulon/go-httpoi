@@ -51,28 +51,54 @@ func saw(c net.Conn) {
 			}
 
 			var i int
-			tmp := []byte{}
-			ix := 0
+			var tmp []byte
+			var ix int
 			m:
 			for i = 0; i < rawReqLen; i++ { // Parse Request Line
 				if(rawReq[i] == ' ' || rawReq[i] == '\n'){
-					switch ix{
-						case 0:
-							req.Method = string(tmp)
-						case 1:
-							req.Url = string(tmp)
-						case 2:
-							req.Version = string(tmp)
-							break m
+					if tmp != nil {
+						switch ix {
+							case 0:
+								req.Method = string(tmp)
+							case 1:
+								req.Url = string(tmp)
+							case 2:
+								req.Version = string(tmp)
+								break m
+						}
+						ix++
+						tmp = nil
 					}
-					ix++
-					tmp = []byte{}
 				}else{
 					tmp = append(tmp, rawReq[i])
 				}
 			}
 
 			if req.Version[:4] == "HTTP" {
+				tmp = nil
+				var name string
+
+				for ; i < rawReqLen; i++ { // Parse Request Headers
+					switch rawReq[i] {
+						case ':':
+							if i+1 < rawReqLen && rawReq[i+1] == ' ' {
+								name = string(tmp)
+								tmp = nil
+								i++
+							}else{
+								tmp = append(tmp, rawReq[i])
+							}
+						case '\n':
+							if name != "" {
+								fmt.Println(name, string(tmp))
+								req.Headers[name] = string(tmp)
+								name = ""
+							}
+							tmp = nil
+						default:
+							tmp = append(tmp, rawReq[i])
+					}
+				}
 
 				resp := &Response{
 					ver: []byte(req.Version),
