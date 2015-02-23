@@ -45,6 +45,7 @@ func saw(c net.Conn) {
 		if leng <= 512 { // reading done
 			rawReq := rawReqBuf.Bytes()
 			rawReqLen := len(rawReq)
+			fmt.Println(rawReq)
 
 			req := &Request{
 				Headers: map[string]string{},
@@ -55,22 +56,24 @@ func saw(c net.Conn) {
 			var ix int
 			m:
 			for i = 0; i < rawReqLen; i++ { // Parse Request Line
-				if(rawReq[i] == ' ' || rawReq[i] == '\n'){
-					if tmp != nil {
-						switch ix {
-							case 0:
-								req.Method = string(tmp)
-							case 1:
-								req.Url = string(tmp)
-							case 2:
-								req.Version = string(tmp)
-								break m
+				switch rawReq[i] {
+					case ' ':
+						if tmp != nil {
+							switch ix {
+								case 0:
+									req.Method = string(tmp)
+								case 1:
+									req.Url = string(tmp)
+							}
+							ix++
+							tmp = nil
 						}
-						ix++
-						tmp = nil
-					}
-				}else{
-					tmp = append(tmp, rawReq[i])
+					case '\r':
+						req.Version = string(tmp)
+						i++
+						break m
+					default:
+						tmp = append(tmp, rawReq[i])
 				}
 			}
 
@@ -88,13 +91,14 @@ func saw(c net.Conn) {
 							}else{
 								tmp = append(tmp, rawReq[i])
 							}
-						case '\n':
+						case '\r':
 							if name != "" {
 								fmt.Println(name, string(tmp))
 								req.Headers[name] = string(tmp)
 								name = ""
 							}
 							tmp = nil
+							i++
 						default:
 							tmp = append(tmp, rawReq[i])
 					}
@@ -107,17 +111,12 @@ func saw(c net.Conn) {
 					Headers: map[string]string{
 						"Sever": serverVer,
 						"X-Powered-By": langVer,
-						"Content-Type": "text/html",
 						"Date": time.Now().Format(time.RFC1123),
 						"Transfer-Encoding": "chunked",
 					},
 				}
 
-				resp.writeLahs()
-
-				resp.WriteString("hello, world!")
-
-				resp.close()
+				resp.ReturnHTML("hello, world!")
 
 			}else{
 				c.Close()
@@ -148,8 +147,9 @@ type Response struct{
 	Headers map[string]string
 	//////////////////////////
 	conn net.Conn
-	async bool
 	ver []byte
+	ret bool
+	async bool
 }
 
 func (resp Response) writeHeader(content string) {
@@ -171,15 +171,11 @@ func (resp Response) writeLahs() {
 	resp.conn.Write(crlf) // headers end
 }
 
-func (resp Response) Write(content []byte) { // write chunk
+func (resp Response) write(content []byte) { // write chunk
 	resp.conn.Write([]byte(strconv.FormatUint(uint64(len(content)), 16))) // size
 	resp.conn.Write(crlf) // size end
 	resp.conn.Write(content) // data
 	resp.conn.Write(crlf) // data end
-}
-
-func (resp Response) WriteString(content string) {
-	resp.Write([]byte(content))
 }
 
 func (resp Response) close(){
@@ -187,7 +183,13 @@ func (resp Response) close(){
 	resp.conn.Close()
 }
 
-func (resp Response) Async() func(){
+func (resp Response) ReturnHTML(html string) {
+	resp.Headers["Content-Type"] = "text/html"
+	resp.writeLahs()
+	resp.write([]byte(html))
+	resp.close()
+}
+
+func (resp Response) Async(){
 	resp.async = true
-	return resp.close
 }
