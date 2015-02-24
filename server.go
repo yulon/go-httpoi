@@ -9,7 +9,7 @@ import (
 	"runtime"
 )
 
-func Sever(laddr string, handler func(*Response, Request)) {
+func Sever(laddr string, handler func(*Response)) {
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
 		fmt.Println("[HTTPOI:" + laddr + "] Failed to listen!")
@@ -23,17 +23,19 @@ func Sever(laddr string, handler func(*Response, Request)) {
 	}
 }
 
-var space []byte = []byte(" ")
-var crlf []byte = []byte("\r\n")
+var space = []byte(" ")
+var crlf = []byte("\r\n")
 var lastChunkAndChunkedBodyEnd = []byte("0\r\n\r\n")
 var langVer = runtime.Version()
 var serverVer = "HTTPOI"
+var etagHat = TimeToUnixString(time.Now()) + "."
 
-var responseLineList map[int][]byte = map[int][]byte{
+var responseLineList = map[int][]byte{
 	200: []byte("200 OK"),
+	304: []byte("304 OK"),
 }
 
-func saw(c net.Conn, handler func(*Response, Request)) {
+func saw(c net.Conn, handler func(*Response)) {
 	rawReqBuf := bytes.NewBuffer([]byte{})
 	for { // reading Requestuest
 		b := make([]byte, 512)
@@ -45,7 +47,6 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 		if leng <= 512 { // reading done
 			rawReq := rawReqBuf.Bytes()
 			rawReqLen := len(rawReq)
-			fmt.Println(rawReq)
 
 			req := Request{
 				Headers: map[string]string{},
@@ -93,7 +94,6 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 							}
 						case '\r':
 							if name != "" {
-								fmt.Println(name, string(tmp))
 								req.Headers[name] = string(tmp)
 								name = ""
 							}
@@ -104,21 +104,23 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 					}
 				}
 
-				resp := &Response{
+				r := &Response{
+					Request: req,
 					Headers: map[string]string{
 						"Date": time.Now().Format(time.RFC1123),
+						"Transfer-Encoding": "chunked",
 						"Sever": serverVer,
 						"X-Powered-By": langVer,
 					},
 					StatusCode: 200,
-					protocol: []byte(req.Protocol),
+					data: bytes.NewBuffer([]byte{}),
 					conn: c,
 				}
 
-				handler(resp, req)
+				handler(r)
 
-				if !resp.async {
-					resp.Close()
+				if !r.async {
+					r.Close()
 				}
 			}else{
 				c.Close()
@@ -141,55 +143,100 @@ type Request struct{
 }
 
 type Response struct{
+	Request Request
 	StatusCode int
 	Headers map[string]string
 	//////////////////////////
+	data *bytes.Buffer
 	conn net.Conn
-	protocol []byte
 	async bool
 	close bool
 }
 
-func (resp Response) writeHeader(content string) {
-	resp.conn.Write([]byte(content))
-	resp.conn.Write(crlf)
+func (r Response) writeHeader(content string) {
+	r.conn.Write([]byte(content))
+	r.conn.Write(crlf)
 }
 
-func (resp Response) writeHeaders() {
+func (r Response) writeHeaders() {
 	// line
-	resp.conn.Write(resp.protocol) // Protocol version
-	resp.conn.Write(space)
-	resp.conn.Write(responseLineList[resp.StatusCode]) // status code
-	resp.conn.Write(crlf) // line end
+	r.conn.Write([]byte(r.Request.Protocol)) // Protocol version
+	r.conn.Write(space)
+	r.conn.Write(responseLineList[r.StatusCode]) // status code
+	r.conn.Write(crlf) // line end
 
 	// headers
-	for k, v := range resp.Headers {
-		resp.writeHeader(k + ": "+ v)
+	for k, v := range r.Headers {
+		r.writeHeader(k + ": "+ v)
 	}
-	resp.conn.Write(crlf) // headers end
+	r.conn.Write(crlf) // headers end
 }
 
-func (resp Response) Write(content []byte) { // write chunk
-	if resp.Headers["Transfer-Encoding"] != "chunked" {
-		resp.Headers["Transfer-Encoding"] = "chunked"
-		resp.writeHeaders()
-	}
-	resp.conn.Write([]byte(strconv.FormatUint(uint64(len(content)), 16))) // size
-	resp.conn.Write(crlf) // size end
-	resp.conn.Write(content) // data
-	resp.conn.Write(crlf) // data end
-}
+func (r Response) writeData() {
+	if r.data.Len() != 0 {
 
-func (resp Response) Close(){
-	if !resp.close {
-		resp.close = true
-		if resp.Headers["Transfer-Encoding"] == "chunked" {
-			resp.conn.Write(lastChunkAndChunkedBodyEnd) // last-chunk + Chunked-Body end
+		eTag := etagHat + "-" + strconv.Itoa(hash(r.data.Bytes()))
+
+		if r.Request.Headers["If-None-Match"] == eTag {
+			r.StatusCode = 304
+			r.writeHeaders()
+		}else{
+			r.Headers["Etag"] = eTag
+			r.Headers["Transfer-Encoding"] = "chunked"
+			r.writeHeaders()
+			r.writeChunkedBody(r.data)
 		}
-		resp.conn.Close()
+
+	}else{
+		r.Headers["Content-Length"] = "0"
+		r.writeHeaders()
 	}
 }
 
-func (resp Response) Async(){
-	resp.async = true
+var chunkSize = []byte(strconv.FormatUint(uint64(5120), 16))
+
+func (r Response) writeChunkedBody(buf *bytes.Buffer) {
+	for { // write chunk
+		data := make([]byte, 5120)
+		leng, err := buf.Read(data)
+		
+		if err != nil {
+			break
+		}
+
+		if leng < 5120{
+			r.conn.Write([]byte(strconv.FormatUint(uint64(leng), 16))) // size
+			r.conn.Write(crlf) // size end
+			r.conn.Write(data[:leng]) // data
+			r.conn.Write(crlf) // data end
+			break
+		}else{
+			r.conn.Write(chunkSize) // size
+			r.conn.Write(crlf) // size end
+			r.conn.Write(data) // data
+			r.conn.Write(crlf) // data end
+		}
+	}
+
+	r.conn.Write(lastChunkAndChunkedBodyEnd) // last-chunk + Chunked-Body end
+}
+
+func (r Response) Write(content []byte) {
+	r.data.Write(content)
+}
+
+func (r Response) WriteString(content string) {
+	r.data.WriteString(content)
+}
+
+func (r Response) Close(){
+	if !r.close {
+		r.close = true
+		r.writeData()
+		r.conn.Close()
+	}
+}
+
+func (r Response) Async(){
+	r.async = true
 }
