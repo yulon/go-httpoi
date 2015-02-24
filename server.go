@@ -9,6 +9,20 @@ import (
 	"runtime"
 )
 
+func Sever(laddr string, handler func(*Response, Request)) {
+	l, err := net.Listen("tcp", laddr)
+	if err != nil {
+		fmt.Println("[HTTPOI:" + laddr + "] Failed to listen!")
+	}
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("[HTTPOI:" + laddr + "] Failed to get conn!")
+		}
+		go saw(conn, handler)
+	}
+}
+
 var space []byte = []byte(" ")
 var crlf []byte = []byte("\r\n")
 var lastChunkAndChunkedBodyEnd = []byte("0\r\n\r\n")
@@ -19,21 +33,7 @@ var responseLineList map[int][]byte = map[int][]byte{
 	200: []byte("200 OK"),
 }
 
-func Listen(laddr string) {
-	l, err := net.Listen("tcp", laddr)
-	if err != nil {
-		fmt.Println("[HTTPOI:" + laddr + "] Failed to listen!")
-	}
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			fmt.Println("[HTTPOI:" + laddr + "] Failed to get conn!")
-		}
-		go saw(conn)
-	}
-}
-
-func saw(c net.Conn) {
+func saw(c net.Conn, handler func(*Response, Request)) {
 	rawReqBuf := bytes.NewBuffer([]byte{})
 	for { // reading Requestuest
 		b := make([]byte, 512)
@@ -47,7 +47,7 @@ func saw(c net.Conn) {
 			rawReqLen := len(rawReq)
 			fmt.Println(rawReq)
 
-			req := &Request{
+			req := Request{
 				Headers: map[string]string{},
 			}
 
@@ -105,22 +105,20 @@ func saw(c net.Conn) {
 				}
 
 				resp := &Response{
-					protocol: []byte(req.Protocol),
-					conn: c,
-					StatusCode: 200,
 					Headers: map[string]string{
+						"Date": time.Now().Format(time.RFC1123),
 						"Sever": serverVer,
 						"X-Powered-By": langVer,
-						"Date": time.Now().Format(time.RFC1123),
-						"Transfer-Encoding": "chunked",
 					},
+					StatusCode: 200,
+					protocol: []byte(req.Protocol),
+					conn: c,
 				}
 
-				resp.Headers["Content-Type"] = "text/html"
-				resp.Output([]byte("hello, world!"))
-				
+				handler(resp, req)
+
 				if !resp.async {
-					resp.End()
+					resp.Close()
 				}
 			}else{
 				c.Close()
@@ -130,10 +128,6 @@ func saw(c net.Conn) {
 		}
 	}
 }
-
-type Handler map[string]func(*Response, Request)
-
-type route map[string]Handler
 
 type Request struct{
 	Method string
@@ -153,7 +147,7 @@ type Response struct{
 	conn net.Conn
 	protocol []byte
 	async bool
-	hed bool
+	close bool
 }
 
 func (resp Response) writeHeader(content string) {
@@ -175,9 +169,9 @@ func (resp Response) writeHeaders() {
 	resp.conn.Write(crlf) // headers end
 }
 
-func (resp Response) Output(content []byte) { // write chunk
-	if !resp.hed {
-		resp.hed = true
+func (resp Response) Write(content []byte) { // write chunk
+	if resp.Headers["Transfer-Encoding"] != "chunked" {
+		resp.Headers["Transfer-Encoding"] = "chunked"
 		resp.writeHeaders()
 	}
 	resp.conn.Write([]byte(strconv.FormatUint(uint64(len(content)), 16))) // size
@@ -186,9 +180,14 @@ func (resp Response) Output(content []byte) { // write chunk
 	resp.conn.Write(crlf) // data end
 }
 
-func (resp Response) End(){
-	resp.conn.Write(lastChunkAndChunkedBodyEnd) // last-chunk + Chunked-Body end
-	resp.conn.Close()
+func (resp Response) Close(){
+	if !resp.close {
+		resp.close = true
+		if resp.Headers["Transfer-Encoding"] == "chunked" {
+			resp.conn.Write(lastChunkAndChunkedBodyEnd) // last-chunk + Chunked-Body end
+		}
+		resp.conn.Close()
+	}
 }
 
 func (resp Response) Async(){
