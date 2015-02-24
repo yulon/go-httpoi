@@ -77,7 +77,7 @@ func saw(c net.Conn) {
 				}
 			}
 
-			if len(req.Protocol) < 4 && req.Protocol[:4] == "HTTP" { // Is HTTP
+			if len(req.Protocol) > 4 && req.Protocol[:4] == "HTTP" { // Is HTTP
 				tmp = nil
 				var name string
 
