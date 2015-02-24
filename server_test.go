@@ -5,5 +5,5 @@ import (
 )
 
 func Test(t *testing.T) {
-	Listen("127.0.0.1:8181")
+	Listen(":8181")
 }
