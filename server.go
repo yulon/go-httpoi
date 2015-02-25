@@ -27,11 +27,10 @@ var space = []byte(" ")
 var crlf = []byte("\r\n")
 var lastChunkAndChunkedBodyEnd = []byte("0\r\n\r\n")
 var langVer = runtime.Version()
-var serverVer = "HTTPOI"
 
 func saw(c net.Conn, handler func(*Response, Request)) {
 	rawReqBuf := bytes.NewBuffer([]byte{})
-	for { // reading Requestuest
+	for { // reading Request
 		b := make([]byte, 512)
 		leng, err := c.Read(b)
 		if err != nil {
@@ -101,7 +100,7 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 				resp := &Response{
 					Headers: map[string]string{
 						"Date": time.Now().Format(time.RFC1123),
-						"Sever": serverVer,
+						"Sever": "HTTPOI",
 						"X-Powered-By": langVer,
 					},
 					Version: req.Version,
