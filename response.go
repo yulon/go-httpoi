@@ -37,7 +37,7 @@ func (resp Response) Status(code string) {
 	resp.conn.Write(crlf) // headers end
 }
 
-func (resp Response) Write(data []byte) (int, error) { // write chunk
+func (resp Response) Write(data []byte) (int, error) {
 	return resp.conn.Write(data)
 }
 
