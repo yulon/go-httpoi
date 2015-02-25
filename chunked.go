@@ -6,19 +6,19 @@ import (
 )
 
 var lastChunkAndChunkedBodyEnd = []byte("0\r\n\r\n")
+const chunkDefaultSize = 5120
+var chunkDefaultSizeHex = []byte(strconv.FormatUint(uint64(chunkDefaultSize), 16))
 
-func Chunked(dest io.Writer, src io.Reader, size int) {
-	var chunkSize = []byte(strconv.FormatUint(uint64(size), 16))
-
+func ChunkedEncode(dest io.Writer, src io.Reader) {
 	for {
-		data := make([]byte, size)
+		data := make([]byte, chunkDefaultSize)
 		leng, err := src.Read(data)
 
 		if err != nil {
 			break
 		}
 
-		if leng < size{
+		if leng < chunkDefaultSize {
 			// (last-1)-chunk
 			dest.Write([]byte(strconv.FormatUint(uint64(leng), 16))) // size
 			dest.Write(crlf) // size end
@@ -27,7 +27,7 @@ func Chunked(dest io.Writer, src io.Reader, size int) {
 			break
 		}else{
 			// chunk
-			dest.Write(chunkSize) // size
+			dest.Write(chunkDefaultSizeHex) // size
 			dest.Write(crlf) // size end
 			dest.Write(data) // data
 			dest.Write(crlf) // data end

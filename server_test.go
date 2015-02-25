@@ -20,6 +20,6 @@ func Test_Sever(t *testing.T) {
 		html := bytes.NewBuffer([]byte("Hello, Chunked!"))
 		resp.Headers["Transfer-Encoding"] = "chunked"
 		resp.Status(StatusOK)
-		Chunked(resp, html, 5120)
+		ChunkedEncode(resp, html)
 	})
 }
