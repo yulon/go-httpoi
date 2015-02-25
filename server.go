@@ -57,7 +57,7 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 						}
 					case '\r':
 						req.Version = string(tmp)
-						i++
+						i++ // \n
 						break m
 					default:
 						tmp = append(tmp, rawReq[i])
@@ -67,24 +67,29 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 			if len(req.Version) > 4 && req.Version[:4] == "HTTP" { // Is HTTP
 				tmp = nil
 				var name string
+				var colon bool
 
 				for ; i < rawReqLen; i++ { // Parse Request Headers
 					switch rawReq[i] {
 						case ':':
-							if i+1 < rawReqLen && rawReq[i+1] == ' ' {
+							if !colon {
+								colon = true
 								name = string(tmp)
 								tmp = nil
-								i++
-							}else{
-								tmp = append(tmp, rawReq[i])
+								for i+1 < rawReqLen && rawReq[i+1] == ' ' {
+									i++
+								}
 							}
+
 						case '\r':
 							if name != "" {
 								req.Headers[name] = string(tmp)
 								name = ""
 							}
 							tmp = nil
-							i++
+							i++ // \n
+							colon = false
+							
 						default:
 							tmp = append(tmp, rawReq[i])
 					}
