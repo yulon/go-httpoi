@@ -23,15 +23,11 @@ func Sever(laddr string, handler func(*Response, Request)) {
 	}
 }
 
-var space []byte = []byte(" ")
-var crlf []byte = []byte("\r\n")
+var space = []byte(" ")
+var crlf = []byte("\r\n")
 var lastChunkAndChunkedBodyEnd = []byte("0\r\n\r\n")
 var langVer = runtime.Version()
 var serverVer = "HTTPOI"
-
-var responseLineList map[int][]byte = map[int][]byte{
-	200: []byte("200 OK"),
-}
 
 func saw(c net.Conn, handler func(*Response, Request)) {
 	rawReqBuf := bytes.NewBuffer([]byte{})
@@ -45,7 +41,6 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 		if leng <= 512 { // reading done
 			rawReq := rawReqBuf.Bytes()
 			rawReqLen := len(rawReq)
-			fmt.Println(rawReq)
 
 			req := Request{
 				Headers: map[string]string{},
@@ -69,7 +64,7 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 							tmp = nil
 						}
 					case '\r':
-						req.Protocol = string(tmp)
+						req.Version = string(tmp)
 						i++
 						break m
 					default:
@@ -77,7 +72,7 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 				}
 			}
 
-			if len(req.Protocol) > 4 && req.Protocol[:4] == "HTTP" { // Is HTTP
+			if len(req.Version) > 4 && req.Version[:4] == "HTTP" { // Is HTTP
 				tmp = nil
 				var name string
 
@@ -93,7 +88,6 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 							}
 						case '\r':
 							if name != "" {
-								fmt.Println(name, string(tmp))
 								req.Headers[name] = string(tmp)
 								name = ""
 							}
@@ -110,8 +104,8 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 						"Sever": serverVer,
 						"X-Powered-By": langVer,
 					},
-					StatusCode: 200,
-					protocol: []byte(req.Protocol),
+					Version: req.Version,
+					Status: StatusOK,
 					conn: c,
 				}
 
@@ -131,7 +125,7 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 
 type Request struct{
 	Method string
-	Protocol string
+	Version string
 	Url string
 	Path string
 	PathParam map[string]string
@@ -141,11 +135,11 @@ type Request struct{
 }
 
 type Response struct{
-	StatusCode int
+	Version string
+	Status string
 	Headers map[string]string
 	//////////////////////////
 	conn net.Conn
-	protocol []byte
 	async bool
 	close bool
 }
@@ -157,9 +151,9 @@ func (resp Response) writeHeader(content string) {
 
 func (resp Response) writeHeaders() {
 	// line
-	resp.conn.Write(resp.protocol) // Protocol version
+	resp.conn.Write([]byte(resp.Version)) // Version version
 	resp.conn.Write(space)
-	resp.conn.Write(responseLineList[resp.StatusCode]) // status code
+	resp.conn.Write([]byte(resp.Status)) // status code
 	resp.conn.Write(crlf) // line end
 
 	// headers
