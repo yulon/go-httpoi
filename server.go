@@ -97,7 +97,6 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 						"X-Powered-By": langVer,
 					},
 					Version: req.Version,
-					Status: StatusOK,
 					conn: c,
 				}
 
