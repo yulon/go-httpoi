@@ -1,12 +1,23 @@
 package httpoi
 
 type Request struct{
-	Method string
-	Version string
-	Url string
-	Path string
-	PathParam map[string]string
-	GetParam map[string]string
-	PostParam map[string]string
+	Line RequestLine
 	Headers map[string]string
+	Body RequestBody
+}
+
+type RequestLine struct{
+	Method string
+	Uri RequestURI
+	Version string
+}
+
+type RequestURI struct{
+	Raw string
+	Param map[string]string
+}
+
+type RequestBody struct{
+	Raw []byte
+	Param map[string]string
 }

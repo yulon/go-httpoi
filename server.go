@@ -48,15 +48,15 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 						if tmp != nil {
 							switch ix {
 								case 0:
-									req.Method = string(tmp)
+									req.Line.Method = string(tmp)
 								case 1:
-									req.Url = string(tmp)
+									req.Line.Uri.Raw = string(tmp)
 							}
 							ix++
 							tmp = nil
 						}
 					case '\r':
-						req.Version = string(tmp)
+						req.Line.Version = string(tmp)
 						i++ // \n
 						break m
 					default:
@@ -64,7 +64,7 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 				}
 			}
 
-			if len(req.Version) > 4 && req.Version[:4] == "HTTP" { // Is HTTP
+			if len(req.Line.Version) > 4 && req.Line.Version[:4] == "HTTP" { // Is HTTP
 				tmp = nil
 				var name string
 				var colon bool
@@ -101,7 +101,7 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 						"Server": "HTTPOI",
 						"X-Powered-By": langVer,
 					},
-					Version: req.Version,
+					Version: req.Line.Version,
 					conn: c,
 				}
 
