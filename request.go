@@ -8,7 +8,7 @@ type Request struct{
 
 type RequestLine struct{
 	Method string
-	Uri RequestURI
+	URI RequestURI
 	Version string
 }
 

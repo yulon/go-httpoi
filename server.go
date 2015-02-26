@@ -50,7 +50,7 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 								case 0:
 									req.Line.Method = string(tmp)
 								case 1:
-									req.Line.Uri.Raw = string(tmp)
+									req.Line.URI.Raw = string(tmp)
 							}
 							ix++
 							tmp = nil
