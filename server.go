@@ -98,7 +98,7 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 				resp := &Response{
 					Headers: map[string]string{
 						"Date": time.Now().Format(time.RFC1123),
-						"Sever": "HTTPOI",
+						"Server": "HTTPOI",
 						"X-Powered-By": langVer,
 					},
 					Version: req.Version,
