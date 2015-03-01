@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func Sever(laddr string, handler func(*Response, Request)) {
+func Sever(laddr string, handler func(*Conn)) {
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
 		fmt.Println("[HTTPOI:" + laddr + "] Failed to listen!")
@@ -21,7 +21,12 @@ func Sever(laddr string, handler func(*Response, Request)) {
 	}
 }
 
-func saw(c net.Conn, handler func(*Response, Request)) {
+type Conn struct{
+	Request RequestParser
+	Response *ResponseWriter
+}
+
+func saw(c net.Conn, handler func(*Conn)) {
 	rawReqBuf := bytes.NewBuffer([]byte{})
 	for { // reading Request
 		b := make([]byte, 512)
@@ -34,38 +39,37 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 			rawReq := rawReqBuf.Bytes()
 			rawReqLen := len(rawReq)
 
-			req := Request{
-				Headers: map[string]string{},
-			}
+			req := RequestParser{}
+			req.Headers = map[string]string{}
 
-			var i int
-			var tmp []byte
-			var ix int
+			//var i int//var ix int
+			i, ix, start := 0, 0, 0
+
 			m:
-			for i = 0; i < rawReqLen; i++ { // Parse Request Line
+			for ; i < rawReqLen; i++ { // Parse Request Line
 				switch rawReq[i] {
 					case ' ':
-						if tmp != nil {
-							switch ix {
-								case 0:
-									req.Line.Method = string(tmp)
-								case 1:
-									req.Line.URI.Raw = string(tmp)
-							}
-							ix++
-							tmp = nil
+						switch ix {
+							case 0:
+								req.Line.Method = string(rawReq[start:i])
+								ix++
+							case 1:
+								req.Line.URI = string(rawReq[start:i])
 						}
+						for i+1 < rawReqLen && rawReq[i+1] == ' ' {
+							i++
+						}
+						start = i + 1
 					case '\r':
-						req.Line.Version = string(tmp)
-						i++ // \n
+						req.Line.HTTPVersion = string(rawReq[start:i])
+					case '\n':
+						start = i + 1
 						break m
-					default:
-						tmp = append(tmp, rawReq[i])
 				}
 			}
 
-			if len(req.Line.Version) > 4 && req.Line.Version[:4] == "HTTP" { // Is HTTP
-				tmp = nil
+			if len(req.Line.HTTPVersion) > 4 && req.Line.HTTPVersion[:4] == "HTTP" { // Is HTTP
+				start = 0
 				var name string
 				var colon bool
 
@@ -74,46 +78,41 @@ func saw(c net.Conn, handler func(*Response, Request)) {
 						case ':':
 							if !colon {
 								colon = true
-								name = string(tmp)
-								tmp = nil
+								name = string(rawReq[start:i])
 								for i+1 < rawReqLen && rawReq[i+1] == ' ' {
 									i++
 								}
+								start = i + 1
 							}
 
 						case '\r':
 							if name != "" {
-								req.Headers[name] = string(tmp)
+								req.Headers[name] = string(rawReq[start:i])
 								name = ""
 							}
-							tmp = nil
-							i++ // \n
 							colon = false
-							
-						default:
-							tmp = append(tmp, rawReq[i])
+
+						case '\n':
+							start = i + 1
 					}
 				}
 
-				resp := &Response{
-					Headers: map[string]string{
-						"Date": time.Now().Format(time.RFC1123),
-						"Server": "HTTPOI",
-						"X-Powered-By": langVer,
+				resp := &ResponseWriter{
+					ResponseInfo: ResponseInfo{
+						Headers: map[string]string{
+							"Date": time.Now().Format(time.RFC1123),
+							"Server": "HTTPOI",
+							"X-Powered-By": langVer,
+						},
+						HTTPVersion: req.Line.HTTPVersion,
 					},
-					Version: req.Line.Version,
-					conn: c,
+					wcr: c,
 				}
 
-				handler(resp, req)
-
-				if !resp.async {
-					resp.Close()
-				}
-			}else{
-				c.Close()
+				handler(&Conn{req, resp})
 			}
-
+			
+			c.Close()
 			return
 		}
 	}

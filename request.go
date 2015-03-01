@@ -1,23 +1,34 @@
 package httpoi
 
-type Request struct{
+type RequestInfo struct{
 	Line RequestLine
 	Headers map[string]string
-	Body RequestBody
 }
 
 type RequestLine struct{
 	Method string
-	URI RequestURI
-	Version string
+	URI string
+	HTTPVersion string
 }
 
-type RequestURI struct{
-	Raw string
-	Param map[string]string
+type RequestParser struct{
+	RequestInfo
+	Path string
+	Params map[string]bos
 }
 
-type RequestBody struct{
-	Raw []byte
-	Param map[string]string
+type bos struct{
+	data interface{}
+}
+
+func (bos bos) ToBytes() []byte {
+	switch d := bos.data.(type){
+		case []byte:
+			return d
+	}
+	return []byte{}
+}
+
+func (bos bos) ToString() string {
+	return string(bos.ToBytes())
 }

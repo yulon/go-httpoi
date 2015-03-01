@@ -1,53 +1,44 @@
 package httpoi
 
 import (
-	"net"
 	"runtime"
+	"io"
 )
 
-type Response struct{
-	Version string
+type ResponseInfo struct{
+	HTTPVersion string
+	StatusCode string
 	Headers map[string]string
-	//////////////////////////
-	conn net.Conn
-	async bool
-	close bool
+}
+
+type ResponseWriter struct{
+	ResponseInfo
+	wcr io.Writer
 }
 
 var space = []byte(" ")
 var crlf = []byte("\r\n")
 var langVer = runtime.Version()
 
-func (resp Response) writeHeader(content string) {
-	resp.conn.Write([]byte(content))
-	resp.conn.Write(crlf)
+func (resp ResponseWriter) writeHeader(content string) {
+	resp.wcr.Write([]byte(content))
+	resp.wcr.Write(crlf)
 }
 
-func (resp Response) Status(code string) {
+func (resp ResponseWriter) Status() {
 	// line
-	resp.conn.Write([]byte(resp.Version)) // Version version
-	resp.conn.Write(space)
-	resp.conn.Write([]byte(code)) // status code
-	resp.conn.Write(crlf) // line end
+	resp.wcr.Write([]byte(resp.HTTPVersion)) // Version version
+	resp.wcr.Write(space)
+	resp.wcr.Write([]byte(resp.StatusCode)) // status code
+	resp.wcr.Write(crlf) // line end
 
 	// headers
 	for k, v := range resp.Headers {
 		resp.writeHeader(k + ": "+ v)
 	}
-	resp.conn.Write(crlf) // headers end
+	resp.wcr.Write(crlf) // headers end
 }
 
-func (resp Response) Write(data []byte) (int, error) {
-	return resp.conn.Write(data)
-}
-
-func (resp Response) Close(){
-	if !resp.close {
-		resp.close = true
-		resp.conn.Close()
-	}
-}
-
-func (resp Response) Async(){
-	resp.async = true
+func (resp ResponseWriter) Write(data []byte) (int, error) {
+	return resp.wcr.Write(data)
 }
