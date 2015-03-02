@@ -39,10 +39,11 @@ func saw(c net.Conn, handler func(*Conn)) {
 			rawReq := rawReqBuf.Bytes()
 			rawReqLen := len(rawReq)
 			req := RequestParser{}
-			i, sp1, sp2 := 0, 0, 0
 
-			m:
-			for ; i < rawReqLen; i++ { // Parse Request Line
+			// Parse Request Line
+			i, sp1, sp2 := 0, 0, 0
+			prl:
+			for ; i < rawReqLen; i++ {
 				switch rawReq[i] {
 					case ' ':
 						if sp1 == 0 {
@@ -55,43 +56,47 @@ func saw(c net.Conn, handler func(*Conn)) {
 						req.Line.HTTPVersion = string(rawReq[sp2+1:i])
 
 					case '\n':
-						break m
+						break prl
 				}
 			}
 
 			if len(req.Line.HTTPVersion) > 4 && req.Line.HTTPVersion[:4] == "HTTP" { // Is HTTP
 				req.Line.Method = string(rawReq[:sp1])
 				req.Line.URI = string(rawReq[sp1+1:sp2])
-				fmt.Println(req.Line)
-				/*req.Headers = map[string]string{}
 
-				start = 0
-				var name string
-				var colon bool
-
-				for ; i < rawReqLen; i++ { // Parse Request Headers
+				// Parse Request Headers
+				req.Headers = map[string]string{}
+				prh:
+				for keyStart, keyEnd, valStart := i + 1, 0, 0; i < rawReqLen; i++ {
 					switch rawReq[i] {
 						case ':':
-							if !colon {
-								colon = true
-								name = string(rawReq[start:i])
-								for i+1 < rawReqLen && rawReq[i+1] == ' ' {
-									i++
+							if keyEnd == 0 {
+								keyEnd = i
+								for y := 1; i+1 < rawReqLen; y++ {
+									if rawReq[i+y] != ' ' && rawReq[i+y] != '\t' {
+										i = i + y - 1
+										valStart = i + 1
+										continue prh
+									}
 								}
-								start = i + 1
 							}
 
 						case '\r':
-							if name != "" {
-								req.Headers[name] = string(rawReq[start:i])
-								name = ""
+							if keyEnd - keyStart > 0 {
+								for y := 1; i+1 < rawReqLen; y++ {
+									if rawReq[i-y] != ' ' && rawReq[i-y] != '\t' {
+										req.Headers[string(rawReq[keyStart:keyEnd])] = string(rawReq[valStart:i-y+1])
+										fmt.Println(string(rawReq[keyStart:keyEnd]), string(rawReq[valStart:i-y+1]))
+										continue prh
+									}
+								}
 							}
-							colon = false
 
 						case '\n':
-							start = i + 1
+							keyStart = i + 1
+							keyEnd = 0
 					}
-				}*/
+				}
 
 				resp := &ResponseWriter{
 					ResponseInfo: ResponseInfo{
