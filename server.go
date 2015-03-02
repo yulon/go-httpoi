@@ -38,37 +38,33 @@ func saw(c net.Conn, handler func(*Conn)) {
 		if leng <= 512 { // reading done
 			rawReq := rawReqBuf.Bytes()
 			rawReqLen := len(rawReq)
-
 			req := RequestParser{}
-			req.Headers = map[string]string{}
-
-			//var i int//var ix int
-			i, ix, start := 0, 0, 0
+			i, sp1, sp2 := 0, 0, 0
 
 			m:
 			for ; i < rawReqLen; i++ { // Parse Request Line
 				switch rawReq[i] {
 					case ' ':
-						switch ix {
-							case 0:
-								req.Line.Method = string(rawReq[start:i])
-								ix++
-							case 1:
-								req.Line.URI = string(rawReq[start:i])
+						if sp1 == 0 {
+							sp1 = i
+						}else{
+							sp2 = i
 						}
-						for i+1 < rawReqLen && rawReq[i+1] == ' ' {
-							i++
-						}
-						start = i + 1
+
 					case '\r':
-						req.Line.HTTPVersion = string(rawReq[start:i])
+						req.Line.HTTPVersion = string(rawReq[sp2+1:i])
+
 					case '\n':
-						start = i + 1
 						break m
 				}
 			}
 
 			if len(req.Line.HTTPVersion) > 4 && req.Line.HTTPVersion[:4] == "HTTP" { // Is HTTP
+				req.Line.Method = string(rawReq[:sp1])
+				req.Line.URI = string(rawReq[sp1+1:sp2])
+				fmt.Println(req.Line)
+				/*req.Headers = map[string]string{}
+
 				start = 0
 				var name string
 				var colon bool
@@ -95,7 +91,7 @@ func saw(c net.Conn, handler func(*Conn)) {
 						case '\n':
 							start = i + 1
 					}
-				}
+				}*/
 
 				resp := &ResponseWriter{
 					ResponseInfo: ResponseInfo{
