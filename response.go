@@ -3,42 +3,72 @@ package httpoi
 import (
 	"runtime"
 	"io"
+	"strconv"
+	"compress/gzip"
+	"bytes"
 )
 
-type ResponseInfo struct{
+type StatusLine struct{
 	HTTPVersion string
-	StatusCode string
-	Headers map[string]string
+	StatusCode int
+	ReasonPhrase string
+}
+
+func (sl *StatusLine) StatusText() string {
+	if sl.ReasonPhrase == "" {
+		sl.ReasonPhrase = ReasonPhrases[sl.StatusCode]
+	}
+	return strconv.Itoa(sl.StatusCode) + sl.ReasonPhrase
+}
+
+type ResponseHeader struct{
+	StatusLine
+	Fields map[string]string
 }
 
 type ResponseWriter struct{
-	ResponseInfo
-	wcr io.Writer
+	ResponseHeader
+	w io.Writer
 }
 
 var space = []byte(" ")
 var crlf = []byte("\r\n")
 var langVer = runtime.Version()
 
-func (resp ResponseWriter) writeHeader(content string) {
-	resp.wcr.Write([]byte(content))
-	resp.wcr.Write(crlf)
+func (this ResponseWriter) writeField(content string) {
+	this.w.Write([]byte(content))
+	this.w.Write(crlf)
 }
 
-func (resp ResponseWriter) Status() {
-	// line
-	resp.wcr.Write([]byte(resp.HTTPVersion)) // Version version
-	resp.wcr.Write(space)
-	resp.wcr.Write([]byte(resp.StatusCode)) // status code
-	resp.wcr.Write(crlf) // line end
+func (this ResponseWriter) writeHeader() {
+	// Line
+	this.w.Write([]byte(this.HTTPVersion))
+	this.w.Write(space)
+	this.w.Write([]byte(this.StatusText()))
+	this.w.Write(crlf) // Line End
 
-	// headers
-	for k, v := range resp.Headers {
-		resp.writeHeader(k + ": "+ v)
+	// Fields
+	for k, v := range this.Fields {
+		this.writeField(k + ": "+ v)
 	}
-	resp.wcr.Write(crlf) // headers end
+	this.w.Write(crlf) // Fields End
 }
 
-func (resp ResponseWriter) Write(data []byte) (int, error) {
-	return resp.wcr.Write(data)
+func (this ResponseWriter) Write(data []byte) {
+	if this.Fields["Transfer-Encoding"] != "chunked" {
+		this.Fields["Transfer-Encoding"] = "chunked"
+		this.writeHeader()
+	}
+	if this.Fields["Content-Encoding"] == "gzip" {
+		buf := bytes.NewBuffer([]byte{})
+		gz := gzip.NewWriter(buf)
+		gz.Write(data)
+		gz.Close()
+		data = buf.Bytes()
+	}
+	// chunk
+	this.w.Write([]byte(strconv.FormatUint(uint64(len(data)), 16))) // size
+	this.w.Write(crlf) // size end
+	this.w.Write(data) // data
+	this.w.Write(crlf) // data end
 }

@@ -1,54 +1,114 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found at http://golang.org/LICENSE
+
 package httpoi
 
+// HTTP status codes, defined in RFC 2616.
 const (
-	StatusContinue           = "100 Continue"
-	StatusSwitchingProtocols = "101 Switching Protocols"
+	StatusContinue           = 100
+	StatusSwitchingProtocols = 101
 
-	StatusOK                   = "200 OK"
-	StatusCreated              = "201 Created"
-	StatusAccepted             = "202 Accepted"
-	StatusNonAuthoritativeInfo = "203 Non-Authoritative Information"
-	StatusNoContent            = "204 No Content"
-	StatusResetContent         = "205 Reset Content"
-	StatusPartialContent       = "206 Partial Content"
+	StatusOK                   = 200
+	StatusCreated              = 201
+	StatusAccepted             = 202
+	StatusNonAuthoritativeInfo = 203
+	StatusNoContent            = 204
+	StatusResetContent         = 205
+	StatusPartialContent       = 206
 
-	StatusMultipleChoices   = "300 Multiple Choices"
-	StatusMovedPermanently  = "301 Moved Permanently"
-	StatusFound             = "302 Found"
-	StatusSeeOther          = "303 See Other"
-	StatusNotModified       = "304 Not Modified"
-	StatusUseProxy          = "305 Use Proxy"
-	StatusTemporaryRedirect = "307 Temporary Redirect"
+	StatusMultipleChoices   = 300
+	StatusMovedPermanently  = 301
+	StatusFound             = 302
+	StatusSeeOther          = 303
+	StatusNotModified       = 304
+	StatusUseProxy          = 305
+	StatusTemporaryRedirect = 307
 
-	StatusBadRequest                   = "400 Bad Request"
-	StatusUnauthorized                 = "401 Unauthorized"
-	StatusPaymentRequired              = "402 Payment Required"
-	StatusForbidden                    = "403 Forbidden"
-	StatusNotFound                     = "404 Not Found"
-	StatusMethodNotAllowed             = "405 Method Not Allowed"
-	StatusNotAcceptable                = "406 Not Acceptable"
-	StatusProxyAuthRequired            = "407 Proxy Authentication Required"
-	StatusRequestTimeout               = "408 Request Timeout"
-	StatusConflict                     = "409 Conflict"
-	StatusGone                         = "410 Gone"
-	StatusLengthRequired               = "411 Length Required"
-	StatusPreconditionFailed           = "412 Precondition Failed"
-	StatusRequestEntityTooLarge        = "413 Request Entity Too Large"
-	StatusRequestURITooLong            = "414 Request URI Too Long"
-	StatusUnsupportedMediaType         = "415 Unsupported Media Type"
-	StatusRequestedRangeNotSatisfiable = "416 Requested Range Not Satisfiable"
-	StatusExpectationFailed            = "417 Expectation Failed"
-	StatusTeapot                       = "418 I'm a teapot"
+	StatusBadRequest                   = 400
+	StatusUnauthorized                 = 401
+	StatusPaymentRequired              = 402
+	StatusForbidden                    = 403
+	StatusNotFound                     = 404
+	StatusMethodNotAllowed             = 405
+	StatusNotAcceptable                = 406
+	StatusProxyAuthRequired            = 407
+	StatusRequestTimeout               = 408
+	StatusConflict                     = 409
+	StatusGone                         = 410
+	StatusLengthRequired               = 411
+	StatusPreconditionFailed           = 412
+	StatusRequestEntityTooLarge        = 413
+	StatusRequestURITooLong            = 414
+	StatusUnsupportedMediaType         = 415
+	StatusRequestedRangeNotSatisfiable = 416
+	StatusExpectationFailed            = 417
+	StatusTeapot                       = 418
 
-	StatusInternalServerError     = "500 Internal Server Error"
-	StatusNotImplemented          = "501 Not Implemented"
-	StatusBadGateway              = "502 Bad Gateway"
-	StatusServiceUnavailable      = "503 Service Unavailable"
-	StatusGatewayTimeout          = "504 Gateway Timeout"
-	StatusHTTPVersionNotSupported = "505 HTTP Version Not Supported"
+	StatusInternalServerError     = 500
+	StatusNotImplemented          = 501
+	StatusBadGateway              = 502
+	StatusServiceUnavailable      = 503
+	StatusGatewayTimeout          = 504
+	StatusHTTPVersionNotSupported = 505
 
-	statusPreconditionRequired          = "428 Precondition Required"
-	statusTooManyRequests               = "429 Too Many Requests"
-	statusRequestHeaderFieldsTooLarge   = "431 Request Header Fields Too Large"
-	statusNetworkAuthenticationRequired = "511 Network Authentication Required"
+	// New HTTP status codes from RFC 6585. Not exported yet in Go 1.1.
+	// See discussion at https://codereview.appspot.com/7678043/
+	statusPreconditionRequired          = 428
+	statusTooManyRequests               = 429
+	statusRequestHeaderFieldsTooLarge   = 431
+	statusNetworkAuthenticationRequired = 511
 )
+
+var ReasonPhrases = map[int]string{
+	StatusContinue:           "Continue",
+	StatusSwitchingProtocols: "Switching Protocols",
+
+	StatusOK:                   "OK",
+	StatusCreated:              "Created",
+	StatusAccepted:             "Accepted",
+	StatusNonAuthoritativeInfo: "Non-Authoritative Information",
+	StatusNoContent:            "No Content",
+	StatusResetContent:         "Reset Content",
+	StatusPartialContent:       "Partial Content",
+
+	StatusMultipleChoices:   "Multiple Choices",
+	StatusMovedPermanently:  "Moved Permanently",
+	StatusFound:             "Found",
+	StatusSeeOther:          "See Other",
+	StatusNotModified:       "Not Modified",
+	StatusUseProxy:          "Use Proxy",
+	StatusTemporaryRedirect: "Temporary Redirect",
+
+	StatusBadRequest:                   "Bad Request",
+	StatusUnauthorized:                 "Unauthorized",
+	StatusPaymentRequired:              "Payment Required",
+	StatusForbidden:                    "Forbidden",
+	StatusNotFound:                     "Not Found",
+	StatusMethodNotAllowed:             "Method Not Allowed",
+	StatusNotAcceptable:                "Not Acceptable",
+	StatusProxyAuthRequired:            "Proxy Authentication Required",
+	StatusRequestTimeout:               "Request Timeout",
+	StatusConflict:                     "Conflict",
+	StatusGone:                         "Gone",
+	StatusLengthRequired:               "Length Required",
+	StatusPreconditionFailed:           "Precondition Failed",
+	StatusRequestEntityTooLarge:        "Request Entity Too Large",
+	StatusRequestURITooLong:            "Request URI Too Long",
+	StatusUnsupportedMediaType:         "Unsupported Media Type",
+	StatusRequestedRangeNotSatisfiable: "Requested Range Not Satisfiable",
+	StatusExpectationFailed:            "Expectation Failed",
+	StatusTeapot:                       "I'm a teapot",
+
+	StatusInternalServerError:     "Internal Server Error",
+	StatusNotImplemented:          "Not Implemented",
+	StatusBadGateway:              "Bad Gateway",
+	StatusServiceUnavailable:      "Service Unavailable",
+	StatusGatewayTimeout:          "Gateway Timeout",
+	StatusHTTPVersionNotSupported: "HTTP Version Not Supported",
+
+	statusPreconditionRequired:          "Precondition Required",
+	statusTooManyRequests:               "Too Many Requests",
+	statusRequestHeaderFieldsTooLarge:   "Request Header Fields Too Large",
+	statusNetworkAuthenticationRequired: "Network Authentication Required",
+}

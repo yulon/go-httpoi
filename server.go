@@ -28,15 +28,16 @@ type Conn struct{
 
 func saw(c net.Conn, handler func(*Conn)) {
 	rawReqBuf := bytes.NewBuffer([]byte{})
-	for { // reading Request
+	for { // Reading Request
 		b := make([]byte, 512)
 		leng, err := c.Read(b)
 		if err != nil {
 			return
 		}
 		rawReqBuf.Write(b[:leng])
-		if leng <= 512 { // reading done
+		if leng <= 512 { // Reading Done
 			rawReq := rawReqBuf.Bytes()
+			fmt.Println(rawReq)
 			rawReqLen := len(rawReq)
 			req := RequestParser{}
 
@@ -53,19 +54,19 @@ func saw(c net.Conn, handler func(*Conn)) {
 						}
 
 					case '\r':
-						req.Line.HTTPVersion = string(rawReq[sp2+1:i])
+						req.HTTPVersion = string(rawReq[sp2+1:i])
 
 					case '\n':
 						break prl
 				}
 			}
 
-			if len(req.Line.HTTPVersion) > 4 && req.Line.HTTPVersion[:4] == "HTTP" { // Is HTTP
-				req.Line.Method = string(rawReq[:sp1])
-				req.Line.URI = string(rawReq[sp1+1:sp2])
+			if len(req.HTTPVersion) > 4 && req.HTTPVersion[:4] == "HTTP" { // Is HTTP
+				req.Method = string(rawReq[:sp1])
+				req.URI = string(rawReq[sp1+1:sp2])
 
-				// Parse Request Headers
-				req.Headers = map[string]string{}
+				// Parse Request Header Fields
+				req.Fields = map[string]string{}
 				prh:
 				for keyStart, keyEnd, valStart := i + 1, 0, 0; i < rawReqLen; i++ {
 					switch rawReq[i] {
@@ -85,7 +86,7 @@ func saw(c net.Conn, handler func(*Conn)) {
 							if keyEnd - keyStart > 0 {
 								for y := 1; i+1 < rawReqLen; y++ {
 									if rawReq[i-y] != ' ' && rawReq[i-y] != '\t' {
-										req.Headers[string(rawReq[keyStart:keyEnd])] = string(rawReq[valStart:i-y+1])
+										req.Fields[string(rawReq[keyStart:keyEnd])] = string(rawReq[valStart:i-y+1])
 										fmt.Println(string(rawReq[keyStart:keyEnd]), string(rawReq[valStart:i-y+1]))
 										continue prh
 									}
@@ -99,18 +100,22 @@ func saw(c net.Conn, handler func(*Conn)) {
 				}
 
 				resp := &ResponseWriter{
-					ResponseInfo: ResponseInfo{
-						Headers: map[string]string{
+					ResponseHeader: ResponseHeader{
+						Fields: map[string]string{
 							"Date": time.Now().Format(time.RFC1123),
 							"Server": "HTTPOI",
 							"X-Powered-By": langVer,
 						},
-						HTTPVersion: req.Line.HTTPVersion,
 					},
-					wcr: c,
+					w: c,
 				}
+				resp.HTTPVersion = req.HTTPVersion
 
 				handler(&Conn{req, resp})
+
+				if resp.Fields["Transfer-Encoding"] == "chunked" {
+					resp.w.Write(lastChunkAndChunkedBodyEnd) // last-chunk + Chunked-Body end
+				}
 			}
 			
 			c.Close()

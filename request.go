@@ -1,18 +1,18 @@
 package httpoi
 
-type RequestInfo struct{
-	Line RequestLine
-	Headers map[string]string
-}
-
 type RequestLine struct{
 	Method string
 	URI string
 	HTTPVersion string
 }
 
+type RequestHeader struct{
+	RequestLine
+	Fields map[string]string
+}
+
 type RequestParser struct{
-	RequestInfo
+	RequestHeader
 	Path string
 	Params map[string]bos
 }
