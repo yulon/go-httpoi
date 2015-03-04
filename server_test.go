@@ -5,10 +5,10 @@ import (
 )
 
 func Test_Sever(t *testing.T) {
-	Sever(":8181", func(c *Conn){
-		c.Response.Fields["Content-Type"] = "text/html"
-		c.Response.Fields["Content-Encoding"] = "gzip"
-		c.Response.StatusCode = StatusOK
-		c.Response.Write([]byte("Hello, World!"))
+	Sever(":8181", func(o *Respond, i *Requested){
+		o.Fields["Content-Type"] = "text/html"
+		o.Fields["Content-Encoding"] = "gzip"
+		o.Status(StatusOK)
+		o.WriteString("Hello, World!")
 	})
 }

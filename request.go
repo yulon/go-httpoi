@@ -7,28 +7,12 @@ type RequestLine struct{
 }
 
 type RequestHeader struct{
-	RequestLine
+	*RequestLine
 	Fields map[string]string
 }
 
-type RequestParser struct{
-	RequestHeader
+type Requested struct{
+	*RequestHeader
 	Path string
-	Params map[string]bos
-}
-
-type bos struct{
-	data interface{}
-}
-
-func (bos bos) ToBytes() []byte {
-	switch d := bos.data.(type){
-		case []byte:
-			return d
-	}
-	return []byte{}
-}
-
-func (bos bos) ToString() string {
-	return string(bos.ToBytes())
+	Params map[string]string
 }

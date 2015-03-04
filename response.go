@@ -14,61 +14,65 @@ type StatusLine struct{
 	ReasonPhrase string
 }
 
-func (sl *StatusLine) StatusText() string {
-	if sl.ReasonPhrase == "" {
-		sl.ReasonPhrase = ReasonPhrases[sl.StatusCode]
-	}
-	return strconv.Itoa(sl.StatusCode) + sl.ReasonPhrase
+func (sl *StatusLine) Status(code int) {
+	sl.StatusCode = code
+	sl.ReasonPhrase = ReasonPhrases[sl.StatusCode]
 }
 
 type ResponseHeader struct{
-	StatusLine
+	*StatusLine
 	Fields map[string]string
 }
 
-type ResponseWriter struct{
-	ResponseHeader
+type Respond struct{
+	*ResponseHeader
 	w io.Writer
+	end bool
 }
 
-var space = []byte(" ")
 var crlf = []byte("\r\n")
 var langVer = runtime.Version()
+var lastChunkAndChunkedBodyEnd = []byte("0\r\n\r\n")
 
-func (this ResponseWriter) writeField(content string) {
-	this.w.Write([]byte(content))
-	this.w.Write(crlf)
+func (o *Respond) writeHeader() {
+	buf := bytes.NewBuffer(make([]byte, 0, 512))
+
+	buf.WriteString(o.HTTPVersion + " " + strconv.Itoa(o.StatusCode) + " " + o.ReasonPhrase + "\r\n") // Status Line
+
+	// Header Fields
+	for k, v := range o.Fields {
+		buf.WriteString(k + ": "+ v + "\r\n") // Header Field
+	}
+	buf.Write(crlf) // Header End
+
+	o.w.Write(buf.Bytes())
 }
 
-func (this ResponseWriter) writeHeader() {
-	// Line
-	this.w.Write([]byte(this.HTTPVersion))
-	this.w.Write(space)
-	this.w.Write([]byte(this.StatusText()))
-	this.w.Write(crlf) // Line End
+func (o *Respond) Write(data []byte) {
+	if !o.end {
+		if o.Fields["Transfer-Encoding"] != "chunked" {
+			o.Fields["Transfer-Encoding"] = "chunked"
+			o.writeHeader()
+		}
+		if o.Fields["Content-Encoding"] == "gzip" {
+			buf := bytes.NewBuffer(make([]byte, 0, len(data)))
+			gz := gzip.NewWriter(buf)
+			gz.Write(data)
+			gz.Close()
+			data = buf.Bytes()
+		}
 
-	// Fields
-	for k, v := range this.Fields {
-		this.writeField(k + ": "+ v)
+		o.w.Write(concat([]byte(strconv.FormatUint(uint64(len(data)), 16)), crlf, data, crlf)) // Chunk
 	}
-	this.w.Write(crlf) // Fields End
 }
 
-func (this ResponseWriter) Write(data []byte) {
-	if this.Fields["Transfer-Encoding"] != "chunked" {
-		this.Fields["Transfer-Encoding"] = "chunked"
-		this.writeHeader()
+func (o *Respond) WriteString(data string) {
+	o.Write([]byte(data))
+}
+
+func (o *Respond) writeEnd() {
+	if !o.end && o.Fields["Transfer-Encoding"] == "chunked" {
+		o.end = true
+		o.w.Write(lastChunkAndChunkedBodyEnd) // Last Chunk + Chunked Body End
 	}
-	if this.Fields["Content-Encoding"] == "gzip" {
-		buf := bytes.NewBuffer([]byte{})
-		gz := gzip.NewWriter(buf)
-		gz.Write(data)
-		gz.Close()
-		data = buf.Bytes()
-	}
-	// chunk
-	this.w.Write([]byte(strconv.FormatUint(uint64(len(data)), 16))) // size
-	this.w.Write(crlf) // size end
-	this.w.Write(data) // data
-	this.w.Write(crlf) // data end
 }
