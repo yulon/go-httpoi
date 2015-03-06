@@ -11,8 +11,7 @@ type RequestHeader struct{
 	Fields map[string]string
 }
 
-type Requested struct{
+type RequestR struct{
 	*RequestHeader
 	Path string
-	Params map[string]string
 }

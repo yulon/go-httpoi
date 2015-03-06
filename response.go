@@ -24,17 +24,17 @@ type ResponseHeader struct{
 	Fields map[string]string
 }
 
-type Respond struct{
+type ResponseW struct{
 	*ResponseHeader
 	w io.Writer
-	end bool
+	close bool
 }
 
 var crlf = []byte("\r\n")
 var langVer = runtime.Version()
 var lastChunkAndChunkedBodyEnd = []byte("0\r\n\r\n")
 
-func (o *Respond) writeHeader() {
+func (o *ResponseW) writeHeader() {
 	buf := bytes.NewBuffer(make([]byte, 0, 512))
 
 	buf.WriteString(o.HTTPVersion + " " + strconv.Itoa(o.StatusCode) + " " + o.ReasonPhrase + "\r\n") // Status Line
@@ -48,8 +48,8 @@ func (o *Respond) writeHeader() {
 	o.w.Write(buf.Bytes())
 }
 
-func (o *Respond) Write(data []byte) {
-	if !o.end {
+func (o *ResponseW) Write(data []byte) {
+	if !o.close {
 		if o.Fields["Transfer-Encoding"] != "chunked" {
 			o.Fields["Transfer-Encoding"] = "chunked"
 			o.writeHeader()
@@ -66,13 +66,13 @@ func (o *Respond) Write(data []byte) {
 	}
 }
 
-func (o *Respond) WriteString(data string) {
+func (o *ResponseW) WriteString(data string) {
 	o.Write([]byte(data))
 }
 
-func (o *Respond) writeEnd() {
-	if !o.end && o.Fields["Transfer-Encoding"] == "chunked" {
-		o.end = true
+func (o *ResponseW) writeEnd() {
+	if !o.close && o.Fields["Transfer-Encoding"] == "chunked" {
+		o.close = true
 		o.w.Write(lastChunkAndChunkedBodyEnd) // Last Chunk + Chunked Body End
 	}
 }

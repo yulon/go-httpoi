@@ -7,7 +7,7 @@ import (
 	"errors"
 )
 
-type Handler func(*Respond, *Requested)
+type Handler func(*ResponseW, *RequestR)
 
 func Sever(laddr string, h Handler) error {
 	l, err := net.Listen("tcp", laddr)
@@ -28,7 +28,7 @@ func saw(c net.Conn, h Handler) {
 	rawReq := make([]byte, 512)
 	rawReqLen, err := c.Read(rawReq)
 	if err == nil {
-		reqLine := &RequestLine{}
+		rqLine := &RequestLine{}
 
 		// Parse Request Line
 		i, sp1, sp2 := 0, 0, 0
@@ -43,21 +43,21 @@ func saw(c net.Conn, h Handler) {
 					}
 
 				case '\r':
-					reqLine.HTTPVersion = string(rawReq[sp2+1:i])
+					rqLine.HTTPVersion = string(rawReq[sp2+1:i])
 
 				case '\n':
 					break prl
 			}
 		}
 
-		if reqLine.HTTPVersion == "HTTP/1.1" { // Is HTTP
-			reqLine.Method = string(rawReq[:sp1])
-			reqLine.URI = string(rawReq[sp1+1:sp2])
-			fmt.Println(reqLine)
+		if rqLine.HTTPVersion == "HTTP/1.1" { // Is HTTP
+			rqLine.Method = string(rawReq[:sp1])
+			rqLine.URI = string(rawReq[sp1+1:sp2])
+			fmt.Println(rqLine)
 
 			// Parse Request Header Fields
-			reqHeader := &RequestHeader{
-				RequestLine: reqLine,
+			rqHeader := &RequestHeader{
+				RequestLine: rqLine,
 				Fields: map[string]string{},
 			}
 
@@ -80,7 +80,7 @@ func saw(c net.Conn, h Handler) {
 						if keyEnd - keyStart > 0 {
 							for y := 1; i+1 < rawReqLen; y++ {
 								if rawReq[i-y] != ' ' && rawReq[i-y] != '\t' {
-									reqHeader.Fields[string(rawReq[keyStart:keyEnd])] = string(rawReq[valStart:i-y+1])
+									rqHeader.Fields[string(rawReq[keyStart:keyEnd])] = string(rawReq[valStart:i-y+1])
 									continue prh
 								}
 							}
@@ -92,14 +92,14 @@ func saw(c net.Conn, h Handler) {
 				}
 			}
 
-			rqd := &Requested{
-				RequestHeader: reqHeader,
+			r := &RequestR{
+				RequestHeader: rqHeader,
 			}
 
-			rsd := &Respond{
+			w := &ResponseW{
 				ResponseHeader: &ResponseHeader{
 					StatusLine: &StatusLine{
-						HTTPVersion: rqd.HTTPVersion,
+						HTTPVersion: rqLine.HTTPVersion,
 					},
 					Fields: map[string]string{
 						"Date": time.Now().Format(time.RFC1123),
@@ -108,11 +108,10 @@ func saw(c net.Conn, h Handler) {
 					},
 				},
 				w: c,
-				end: false,
 			}
 
-			h(rsd, rqd)
-			rsd.writeEnd()
+			h(w, r)
+			w.writeEnd()
 		}
 	}
 	c.Close()
