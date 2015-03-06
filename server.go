@@ -56,10 +56,7 @@ func saw(c net.Conn, h Handler) {
 			fmt.Println(rqLine)
 
 			// Parse Request Header Fields
-			rqHeader := &RequestHeader{
-				RequestLine: rqLine,
-				Fields: map[string]string{},
-			}
+			rqFields := HeaderFields{}
 
 			prh:
 			for keyStart, keyEnd, valStart := i + 1, 0, 0; i < rawReqLen; i++ {
@@ -80,7 +77,7 @@ func saw(c net.Conn, h Handler) {
 						if keyEnd - keyStart > 0 {
 							for y := 1; i+1 < rawReqLen; y++ {
 								if rawReq[i-y] != ' ' && rawReq[i-y] != '\t' {
-									rqHeader.Fields[string(rawReq[keyStart:keyEnd])] = string(rawReq[valStart:i-y+1])
+									rqFields[string(rawReq[keyStart:keyEnd])] = string(rawReq[valStart:i-y+1])
 									continue prh
 								}
 							}
@@ -92,26 +89,25 @@ func saw(c net.Conn, h Handler) {
 				}
 			}
 
-			r := &RequestR{
-				RequestHeader: rqHeader,
+			rqr := &RequestR{
+				Line: rqLine,
+				Fields: rqFields,
 			}
 
-			w := &ResponseW{
-				ResponseHeader: &ResponseHeader{
-					StatusLine: &StatusLine{
-						HTTPVersion: rqLine.HTTPVersion,
-					},
-					Fields: map[string]string{
-						"Date": time.Now().Format(time.RFC1123),
-						"Server": "HTTPOI",
-						"X-Powered-By": langVer,
-					},
+			rsw := &ResponseW{
+				Line: &StatusLine{
+					HTTPVersion: rqLine.HTTPVersion,
+				},
+				Fields: HeaderFields{
+					"Date": time.Now().Format(time.RFC1123),
+					"Server": "HTTPOI",
+					"X-Powered-By": langVer,
 				},
 				w: c,
 			}
 
-			h(w, r)
-			w.writeEnd()
+			h(rsw, rqr)
+			rsw.Close()
 		}
 	}
 	c.Close()

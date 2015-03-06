@@ -19,13 +19,13 @@ func (sl *StatusLine) Status(code int) {
 	sl.ReasonPhrase = ReasonPhrases[sl.StatusCode]
 }
 
-type ResponseHeader struct{
-	*StatusLine
-	Fields map[string]string
+func (sl *StatusLine) ToString() string {
+	return sl.HTTPVersion + " " + strconv.Itoa(sl.StatusCode) + " " + sl.ReasonPhrase + "\r\n"
 }
 
 type ResponseW struct{
-	*ResponseHeader
+	Line *StatusLine
+	Fields HeaderFields
 	w io.Writer
 	close bool
 }
@@ -35,17 +35,8 @@ var langVer = runtime.Version()
 var lastChunkAndChunkedBodyEnd = []byte("0\r\n\r\n")
 
 func (rsw *ResponseW) writeHeader() {
-	buf := bytes.NewBuffer(make([]byte, 0, 512))
-
-	buf.WriteString(rsw.HTTPVersion + " " + strconv.Itoa(rsw.StatusCode) + " " + rsw.ReasonPhrase + "\r\n") // Status Line
-
-	// Header Fields
-	for k, v := range rsw.Fields {
-		buf.WriteString(k + ": "+ v + "\r\n") // Header Field
-	}
-	buf.Write(crlf) // Header End
-
-	rsw.w.Write(buf.Bytes())
+	rsw.Line.Status(StatusOK)
+	rsw.w.Write([]byte(rsw.Line.ToString() + rsw.Fields.ToString() + "\r\n"))
 }
 
 func (rsw *ResponseW) Write(data []byte) {
@@ -70,7 +61,7 @@ func (rsw *ResponseW) WriteString(data string) {
 	rsw.Write([]byte(data))
 }
 
-func (rsw *ResponseW) writeEnd() {
+func (rsw *ResponseW) Close() {
 	if !rsw.close && rsw.Fields["Transfer-Encoding"] == "chunked" {
 		rsw.close = true
 		rsw.w.Write(lastChunkAndChunkedBodyEnd) // Last Chunk + Chunked Body End
