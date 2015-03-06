@@ -2,9 +2,10 @@ package httpoi
 
 import (
 	"net"
-	"fmt"
+	//"fmt"
 	"time"
 	"errors"
+	"runtime"
 )
 
 type SeverHandler func(*ResponseW, *RequestR)
@@ -23,6 +24,8 @@ func Sever(laddr string, h SeverHandler) error {
 	}
 	return nil
 }
+
+var lang = runtime.Version()
 
 func saw(c net.Conn, h SeverHandler) {
 	rawReq := make([]byte, 512)
@@ -53,7 +56,6 @@ func saw(c net.Conn, h SeverHandler) {
 		if rqLine.HTTPVersion == "HTTP/1.1" { // Is HTTP
 			rqLine.Method = string(rawReq[:sp1])
 			rqLine.URI = string(rawReq[sp1+1:sp2])
-			fmt.Println(rqLine)
 
 			// Parse Request Header Fields
 			rqFields := HeaderFields{}
@@ -89,25 +91,24 @@ func saw(c net.Conn, h SeverHandler) {
 				}
 			}
 
-			rqr := &RequestR{
+			rq := &RequestR{
 				Line: rqLine,
 				Fields: rqFields,
 			}
 
-			rsw := &ResponseW{
+			rs := &ResponseW{
 				Line: &StatusLine{
 					HTTPVersion: rqLine.HTTPVersion,
 				},
 				Fields: HeaderFields{
 					"Date": time.Now().Format(time.RFC1123),
 					"Server": "HTTPOI",
-					"X-Powered-By": langVer,
+					"X-Powered-By": lang,
 				},
-				w: c,
+				Writer: c,
 			}
 
-			h(rsw, rqr)
-			rsw.Close()
+			h(rs, rq)
 		}
 	}
 	c.Close()

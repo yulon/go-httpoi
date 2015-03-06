@@ -13,5 +13,5 @@ type RequestLine struct{
 type RequestR struct{
 	Line *RequestLine
 	Fields HeaderFields
-	r io.Reader
+	io.Reader
 }
