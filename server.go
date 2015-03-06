@@ -7,9 +7,9 @@ import (
 	"errors"
 )
 
-type Handler func(*ResponseW, *RequestR)
+type SeverHandler func(*ResponseW, *RequestR)
 
-func Sever(laddr string, h Handler) error {
+func Sever(laddr string, h SeverHandler) error {
 	l, err := net.Listen("tcp", laddr)
 	if err != nil {
 		return errors.New("Failed to listen")
@@ -24,7 +24,7 @@ func Sever(laddr string, h Handler) error {
 	return nil
 }
 
-func saw(c net.Conn, h Handler) {
+func saw(c net.Conn, h SeverHandler) {
 	rawReq := make([]byte, 512)
 	rawReqLen, err := c.Read(rawReq)
 	if err == nil {
