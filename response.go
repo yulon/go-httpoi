@@ -34,27 +34,27 @@ var crlf = []byte("\r\n")
 var langVer = runtime.Version()
 var lastChunkAndChunkedBodyEnd = []byte("0\r\n\r\n")
 
-func (o *ResponseW) writeHeader() {
+func (rsw *ResponseW) writeHeader() {
 	buf := bytes.NewBuffer(make([]byte, 0, 512))
 
-	buf.WriteString(o.HTTPVersion + " " + strconv.Itoa(o.StatusCode) + " " + o.ReasonPhrase + "\r\n") // Status Line
+	buf.WriteString(rsw.HTTPVersion + " " + strconv.Itoa(rsw.StatusCode) + " " + rsw.ReasonPhrase + "\r\n") // Status Line
 
 	// Header Fields
-	for k, v := range o.Fields {
+	for k, v := range rsw.Fields {
 		buf.WriteString(k + ": "+ v + "\r\n") // Header Field
 	}
 	buf.Write(crlf) // Header End
 
-	o.w.Write(buf.Bytes())
+	rsw.w.Write(buf.Bytes())
 }
 
-func (o *ResponseW) Write(data []byte) {
-	if !o.close {
-		if o.Fields["Transfer-Encoding"] != "chunked" {
-			o.Fields["Transfer-Encoding"] = "chunked"
-			o.writeHeader()
+func (rsw *ResponseW) Write(data []byte) {
+	if !rsw.close {
+		if rsw.Fields["Transfer-Encoding"] != "chunked" {
+			rsw.Fields["Transfer-Encoding"] = "chunked"
+			rsw.writeHeader()
 		}
-		if o.Fields["Content-Encoding"] == "gzip" {
+		if rsw.Fields["Content-Encoding"] == "gzip" {
 			buf := bytes.NewBuffer(make([]byte, 0, len(data)))
 			gz := gzip.NewWriter(buf)
 			gz.Write(data)
@@ -62,17 +62,17 @@ func (o *ResponseW) Write(data []byte) {
 			data = buf.Bytes()
 		}
 
-		o.w.Write(concat([]byte(strconv.FormatUint(uint64(len(data)), 16)), crlf, data, crlf)) // Chunk
+		rsw.w.Write(concat([]byte(strconv.FormatUint(uint64(len(data)), 16)), crlf, data, crlf)) // Chunk
 	}
 }
 
-func (o *ResponseW) WriteString(data string) {
-	o.Write([]byte(data))
+func (rsw *ResponseW) WriteString(data string) {
+	rsw.Write([]byte(data))
 }
 
-func (o *ResponseW) writeEnd() {
-	if !o.close && o.Fields["Transfer-Encoding"] == "chunked" {
-		o.close = true
-		o.w.Write(lastChunkAndChunkedBodyEnd) // Last Chunk + Chunked Body End
+func (rsw *ResponseW) writeEnd() {
+	if !rsw.close && rsw.Fields["Transfer-Encoding"] == "chunked" {
+		rsw.close = true
+		rsw.w.Write(lastChunkAndChunkedBodyEnd) // Last Chunk + Chunked Body End
 	}
 }
