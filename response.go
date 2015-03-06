@@ -26,8 +26,9 @@ type ResponseW struct{
 	io.Writer
 }
 
-func (rs *ResponseW) WriteHeader() {
-	rs.Write([]byte(rs.Line.ToString() + rs.Fields.ToString() + "\r\n"))
+func (rs *ResponseW) WriteHeader() (err error) {
+	_, err = rs.Write([]byte(rs.Line.ToString() + rs.Fields.ToString() + "\r\n"))
+	return
 }
 
 func (rs *ResponseW) WriteString(data string) (int, error) {
