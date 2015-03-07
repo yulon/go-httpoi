@@ -6,9 +6,9 @@ import (
 
 type HeaderFields map[string]string
 
-func (hfs HeaderFields) MakeFields() string {
+func (hf HeaderFields) MakeHF() string {
 	buf := bytes.NewBuffer(make([]byte, 0, 512))
-	for k, v := range hfs {
+	for k, v := range hf {
 		buf.WriteString(k + ": "+ v + "\r\n")
 	}
 	return buf.String()

@@ -23,11 +23,11 @@ func (sl *StatusLine) MakeLine() string {
 
 type ResponseHeader struct{
 	*StatusLine
-	Fields HeaderFields
+	HF HeaderFields
 }
 
 func (rsh *ResponseHeader) MakeHeader() string {
-	return rsh.StatusLine.MakeLine() + rsh.Fields.MakeFields() + "\r\n"
+	return rsh.StatusLine.MakeLine() + rsh.HF.MakeHF() + "\r\n"
 }
 
 type ResponseW struct{
@@ -38,8 +38,8 @@ type ResponseW struct{
 func (rs *ResponseW) WriteHeader(StatusCode int) (err error) {
 	_, err = rs.wc.Write([]byte(rs.ResponseHeader.MakeHeader()))
 
-	if rs.Fields["Transfer-Encoding"] == "chunked" {
-		if rs.Fields["Content-Encoding"] == "gzip" {
+	if rs.HF["Transfer-Encoding"] == "chunked" {
+		if rs.HF["Content-Encoding"] == "gzip" {
 			rs.wc = chunked.NewGzipWriter(rs.wc)
 		}else{
 			rs.wc = chunked.NewWriter(rs.wc)

@@ -57,8 +57,8 @@ func saw(conn net.Conn, h SeverHandler) {
 			rqLine.Method = string(rawReq[:sp1])
 			rqLine.URI = string(rawReq[sp1+1:sp2])
 
-			// Parse Request Header Fields
-			rqFields := HeaderFields{}
+			// Parse Request Header HF
+			rqHF := HeaderFields{}
 
 			prh:
 			for keyStart, keyEnd, valStart := i + 1, 0, 0; i < rawReqLen; i++ {
@@ -79,7 +79,7 @@ func saw(conn net.Conn, h SeverHandler) {
 						if keyEnd - keyStart > 0 {
 							for y := 1; i+1 < rawReqLen; y++ {
 								if rawReq[i-y] != ' ' && rawReq[i-y] != '\t' {
-									rqFields[string(rawReq[keyStart:keyEnd])] = string(rawReq[valStart:i-y+1])
+									rqHF[string(rawReq[keyStart:keyEnd])] = string(rawReq[valStart:i-y+1])
 									continue prh
 								}
 							}
@@ -94,7 +94,7 @@ func saw(conn net.Conn, h SeverHandler) {
 			rq := &RequestR{
 				RequestHeader: &RequestHeader{
 					RequestLine: rqLine,
-					Fields: rqFields,
+					HF: rqHF,
 				},
 			}
 
@@ -103,7 +103,7 @@ func saw(conn net.Conn, h SeverHandler) {
 					StatusLine: &StatusLine{
 						HTTPVersion: rqLine.HTTPVersion,
 					},
-					Fields: HeaderFields{
+					HF: HeaderFields{
 						"Date": time.Now().Format(time.RFC1123),
 						"Server": "HTTPOI",
 						"X-Powered-By": lang,

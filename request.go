@@ -12,7 +12,7 @@ type RequestLine struct{
 
 type RequestHeader struct{
 	*RequestLine
-	Fields HeaderFields
+	HF HeaderFields
 }
 
 type RequestR struct{
