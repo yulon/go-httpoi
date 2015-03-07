@@ -3,6 +3,7 @@ package httpoi
 import (
 	"io"
 	"strconv"
+	"github.com/yulon/httpoi/chunked"
 )
 
 type StatusLine struct{
@@ -23,14 +24,25 @@ func (sl *StatusLine) ToString() string {
 type ResponseW struct{
 	Line *StatusLine
 	Fields HeaderFields
-	io.Writer
+	wc io.WriteCloser
 }
 
 func (rs *ResponseW) WriteHeader() (err error) {
-	_, err = rs.Write([]byte(rs.Line.ToString() + rs.Fields.ToString() + "\r\n"))
+	_, err = rs.wc.Write([]byte(rs.Line.ToString() + rs.Fields.ToString() + "\r\n"))
+	if rs.Fields["Transfer-Encoding"] == "chunked" {
+		if rs.Fields["Content-Encoding"] == "gzip" {
+			rs.wc = chunked.NewGzipWriter(rs.wc)
+		}else{
+			rs.wc = chunked.NewWriter(rs.wc)
+		}
+	}
 	return
 }
 
+func (rs *ResponseW) Write(data []byte) (int, error) {
+	return rs.wc.Write(data)
+}
+
 func (rs *ResponseW) WriteString(data string) (int, error) {
-	return rs.Write([]byte(data))
+	return rs.wc.Write([]byte(data))
 }

@@ -6,8 +6,11 @@ import (
 
 func Test_Sever(t *testing.T) {
 	Sever(":8181", func(rs *ResponseW, rq *RequestR){
-		rs.Line.Status(StatusFound)
-		rs.Fields["Location"] = "http://www.baidu.com"
+		rs.Line.Status(StatusOK)
+		rs.Fields["Content-Type"] = "text/html"
+		rs.Fields["Transfer-Encoding"] = "chunked"
+		rs.Fields["Content-Encoding"] = "gzip"
 		rs.WriteHeader()
+		rs.WriteString("Hello, World!")
 	})
 }

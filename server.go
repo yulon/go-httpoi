@@ -27,9 +27,9 @@ func Sever(laddr string, h SeverHandler) error {
 
 var lang = runtime.Version()
 
-func saw(c net.Conn, h SeverHandler) {
+func saw(conn net.Conn, h SeverHandler) {
 	rawReq := make([]byte, 512)
-	rawReqLen, err := c.Read(rawReq)
+	rawReqLen, err := conn.Read(rawReq)
 	if err == nil {
 		rqLine := &RequestLine{}
 
@@ -105,11 +105,12 @@ func saw(c net.Conn, h SeverHandler) {
 					"Server": "HTTPOI",
 					"X-Powered-By": lang,
 				},
-				Writer: c,
+				wc: &writeNopCloser{conn},
 			}
 
 			h(rs, rq)
+			rs.wc.Close()
 		}
 	}
-	c.Close()
+	conn.Close()
 }
