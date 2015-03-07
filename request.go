@@ -10,8 +10,12 @@ type RequestLine struct{
 	HTTPVersion string
 }
 
-type RequestR struct{
-	Line *RequestLine
+type RequestHeader struct{
+	*RequestLine
 	Fields HeaderFields
+}
+
+type RequestR struct{
+	*RequestHeader
 	io.Reader
 }

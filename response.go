@@ -17,18 +17,27 @@ func (sl *StatusLine) Status(code int) {
 	sl.ReasonPhrase = ReasonPhrases[sl.StatusCode]
 }
 
-func (sl *StatusLine) ToString() string {
+func (sl *StatusLine) MakeLine() string {
 	return sl.HTTPVersion + " " + strconv.Itoa(sl.StatusCode) + " " + sl.ReasonPhrase + "\r\n"
 }
 
-type ResponseW struct{
-	Line *StatusLine
+type ResponseHeader struct{
+	*StatusLine
 	Fields HeaderFields
+}
+
+func (rsh *ResponseHeader) MakeHeader() string {
+	return rsh.StatusLine.MakeLine() + rsh.Fields.MakeFields() + "\r\n"
+}
+
+type ResponseW struct{
+	*ResponseHeader
 	wc io.WriteCloser
 }
 
-func (rs *ResponseW) WriteHeader() (err error) {
-	_, err = rs.wc.Write([]byte(rs.Line.ToString() + rs.Fields.ToString() + "\r\n"))
+func (rs *ResponseW) WriteHeader(StatusCode int) (err error) {
+	_, err = rs.wc.Write([]byte(rs.ResponseHeader.MakeHeader()))
+
 	if rs.Fields["Transfer-Encoding"] == "chunked" {
 		if rs.Fields["Content-Encoding"] == "gzip" {
 			rs.wc = chunked.NewGzipWriter(rs.wc)
@@ -36,6 +45,7 @@ func (rs *ResponseW) WriteHeader() (err error) {
 			rs.wc = chunked.NewWriter(rs.wc)
 		}
 	}
+
 	return
 }
 

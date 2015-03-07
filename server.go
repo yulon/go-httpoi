@@ -92,18 +92,22 @@ func saw(conn net.Conn, h SeverHandler) {
 			}
 
 			rq := &RequestR{
-				Line: rqLine,
-				Fields: rqFields,
+				RequestHeader: &RequestHeader{
+					RequestLine: rqLine,
+					Fields: rqFields,
+				},
 			}
 
 			rs := &ResponseW{
-				Line: &StatusLine{
-					HTTPVersion: rqLine.HTTPVersion,
-				},
-				Fields: HeaderFields{
-					"Date": time.Now().Format(time.RFC1123),
-					"Server": "HTTPOI",
-					"X-Powered-By": lang,
+				ResponseHeader: &ResponseHeader{
+					StatusLine: &StatusLine{
+						HTTPVersion: rqLine.HTTPVersion,
+					},
+					Fields: HeaderFields{
+						"Date": time.Now().Format(time.RFC1123),
+						"Server": "HTTPOI",
+						"X-Powered-By": lang,
+					},
 				},
 				wc: &writeNopCloser{conn},
 			}

@@ -6,7 +6,7 @@ import (
 
 func Test_Sever(t *testing.T) {
 	Sever(":8181", func(rs *ResponseW, rq *RequestR){
-		rs.Line.Status(StatusOK)
+		rs.Status(StatusOK)
 		rs.Fields["Content-Type"] = "text/html"
 		rs.Fields["Transfer-Encoding"] = "chunked"
 		rs.Fields["Content-Encoding"] = "gzip"
