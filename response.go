@@ -35,7 +35,7 @@ type ResponseW struct{
 	wc io.WriteCloser
 }
 
-func (rs *ResponseW) WriteHeader(StatusCode int) (err error) {
+func (rs *ResponseW) WriteHeader() (err error) {
 	_, err = rs.wc.Write([]byte(rs.ResponseHeader.MakeHeader()))
 
 	if rs.HF["Transfer-Encoding"] == "chunked" {
