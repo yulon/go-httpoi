@@ -62,13 +62,15 @@ func ReadRequest(conn net.Conn) (rq *RequestR, err error) {
 											rqHFColon = true
 											rqHFName = buf.String()
 											buf.Reset()
+										}else{
+											buf.Write(b)
 										}
 
 									case '\r':
 										conn.Read(b)
 										if b[0] == '\n' {
 											if rqHFName != "" {
-												rqHF[rqHFName] = buf.String()
+												rqHF[rqHFName] = trim(buf.String())
 												buf.Reset()
 												rqHFName = ""
 												rqHFColon = false
