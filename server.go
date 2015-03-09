@@ -35,7 +35,7 @@ func saw(conn net.Conn, h SeverHandler) {
 				StatusLine: &StatusLine{
 					HTTPVersion: rq.HTTPVersion,
 				},
-				HF: HeaderFields{
+				Headers: Headers{
 					"Date": time.Now().Format(time.RFC1123),
 					"Server": "HTTPOI",
 					"X-Powered-By": lang,

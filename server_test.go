@@ -6,11 +6,10 @@ import (
 
 func Test_Sever(t *testing.T) {
 	Sever(":8181", func(rs *ResponseW, rq *RequestR){
-		rs.Status(StatusOK)
-		rs.HF["Content-Type"] = "text/html"
-		rs.HF["Transfer-Encoding"] = "chunked"
-		rs.HF["Content-Encoding"] = "gzip"
-		rs.WriteHeader()
+		rs.Headers["Content-Type"] = "text/html"
+		rs.Headers["Transfer-Encoding"] = "chunked"
+		rs.Headers["Content-Encoding"] = "gzip"
+		rs.WriteHeaders(StatusOK)
 		rs.WriteString("Hello, World!")
 	})
 }

@@ -4,9 +4,9 @@ import (
 	"bytes"
 )
 
-type HeaderFields map[string]string
+type Headers map[string]string
 
-func (hf HeaderFields) MakeHF() string {
+func (hf Headers) MakeHeaders() string {
 	buf := bytes.NewBuffer(make([]byte, 0, 512))
 	for k, v := range hf {
 		buf.WriteString(k + ": "+ v + "\r\n")

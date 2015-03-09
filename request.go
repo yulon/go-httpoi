@@ -16,7 +16,7 @@ type RequestLine struct{
 
 type RequestHeader struct{
 	*RequestLine
-	HF HeaderFields
+	Headers Headers
 }
 
 type RequestR struct{
@@ -58,16 +58,16 @@ func ReadRequest(conn net.Conn) (*RequestR, error) {
 					rqLine.URI = rqLineTokens[1]
 
 					// Read Header Fields
-					rqHF := HeaderFields{}
-					rqHFName := ""
-					rqHFColon := false
+					rqHeaders := Headers{}
+					rqHeadersName := ""
+					rqHeadersColon := false
 					for {
 						conn.Read(b)
 						switch b[0] {
 							case ':':
-								if !rqHFColon {
-									rqHFColon = true
-									rqHFName = buf.String()
+								if !rqHeadersColon {
+									rqHeadersColon = true
+									rqHeadersName = buf.String()
 									buf.Reset()
 								}else{
 									buf.Write(b)
@@ -76,16 +76,16 @@ func ReadRequest(conn net.Conn) (*RequestR, error) {
 							case '\r':
 								conn.Read(b)
 								if b[0] == '\n' {
-									if rqHFColon {
-										rqHF[rqHFName] = trim(buf.String())
+									if rqHeadersColon {
+										rqHeaders[rqHeadersName] = trim(buf.String())
 										buf.Reset()
-										rqHFName = ""
-										rqHFColon = false
+										rqHeadersName = ""
+										rqHeadersColon = false
 									}else{
 										rq := &RequestR{
 											RequestHeader: &RequestHeader{
 												RequestLine: rqLine,
-												HF: rqHF,
+												Headers: rqHeaders,
 											},
 											Reader: conn,
 										}

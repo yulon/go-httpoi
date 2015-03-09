@@ -23,11 +23,11 @@ func (sl *StatusLine) MakeLine() string {
 
 type ResponseHeader struct{
 	*StatusLine
-	HF HeaderFields
+	Headers Headers
 }
 
-func (rsh *ResponseHeader) MakeHeader() string {
-	return rsh.StatusLine.MakeLine() + rsh.HF.MakeHF() + "\r\n"
+func (rsh *ResponseHeader) MakeHeaders() string {
+	return rsh.StatusLine.MakeLine() + rsh.Headers.MakeHeaders() + "\r\n"
 }
 
 type ResponseW struct{
@@ -35,11 +35,12 @@ type ResponseW struct{
 	wc io.WriteCloser
 }
 
-func (rs *ResponseW) WriteHeader() (err error) {
-	_, err = rs.wc.Write([]byte(rs.ResponseHeader.MakeHeader()))
+func (rs *ResponseW) WriteHeaders(StatusCode int) (err error) {
+	rs.ResponseHeader.StatusLine.Status(StatusCode)
+	_, err = rs.wc.Write([]byte(rs.ResponseHeader.MakeHeaders()))
 
-	if rs.HF["Transfer-Encoding"] == "chunked" {
-		if rs.HF["Content-Encoding"] == "gzip" {
+	if rs.Headers["Transfer-Encoding"] == "chunked" {
+		if rs.Headers["Content-Encoding"] == "gzip" {
 			rs.wc = chunked.NewGzipWriter(rs.wc)
 		}else{
 			rs.wc = chunked.NewWriter(rs.wc)
