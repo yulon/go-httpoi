@@ -24,7 +24,7 @@ type RequestR struct{
 	io.Reader
 }
 
-func ReadRequest(conn net.Conn) (rq *RequestR, err error) {
+func ReadRequest(conn net.Conn) (*RequestR, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, 128))
 
 	// Read Request Line
@@ -43,62 +43,63 @@ func ReadRequest(conn net.Conn) (rq *RequestR, err error) {
 			case '\r':
 				conn.Read(b)
 				if b[0] == '\n' {
-					if rqLineNowToken == 2 {
-						rqLine.HTTPVersion = buf.String()
-						buf.Reset()
-						if rqLine.HTTPVersion == "HTTP/1.1" {
-							rqLine.Method = rqLineTokens[0]
-							rqLine.URI = rqLineTokens[1]
-
-							// Read Request Header Fields
-							rqHF := HeaderFields{}
-							rqHFName := ""
-							rqHFColon := false
-							for {
-								conn.Read(b)
-								switch b[0] {
-									case ':':
-										if !rqHFColon {
-											rqHFColon = true
-											rqHFName = buf.String()
-											buf.Reset()
-										}else{
-											buf.Write(b)
-										}
-
-									case '\r':
-										conn.Read(b)
-										if b[0] == '\n' {
-											if rqHFColon {
-												rqHF[rqHFName] = trim(buf.String())
-												buf.Reset()
-												rqHFName = ""
-												rqHFColon = false
-											}else{
-												rq = &RequestR{
-													RequestHeader: &RequestHeader{
-														RequestLine: rqLine,
-														HF: rqHF,
-													},
-													Reader: conn,
-												}
-												return
-											}
-										}else{
-											buf.Write(b)
-										}
-
-									default:
-										buf.Write(b)
-								}
-							}
-						}else{
-							err = errors.New("Protocol is not supported")
-						}
-					}else{
-						err = errors.New("Request-Line token count mismatch")
+					if rqLineNowToken != 2 {
+						return nil, errors.New("Request Line token count mismatch")
 					}
-					return
+
+					rqLine.HTTPVersion = buf.String()
+					buf.Reset()
+
+					if rqLine.HTTPVersion == "HTTP/1.1" {
+						return nil, errors.New("Protocol is not supported")
+					}
+
+					rqLine.Method = rqLineTokens[0]
+					rqLine.URI = rqLineTokens[1]
+
+					// Read Header Fields
+					rqHF := HeaderFields{}
+					rqHFName := ""
+					rqHFColon := false
+					for {
+						conn.Read(b)
+						switch b[0] {
+							case ':':
+								if !rqHFColon {
+									rqHFColon = true
+									rqHFName = buf.String()
+									buf.Reset()
+								}else{
+									buf.Write(b)
+								}
+
+							case '\r':
+								conn.Read(b)
+								if b[0] == '\n' {
+									if rqHFColon {
+										rqHF[rqHFName] = trim(buf.String())
+										buf.Reset()
+										rqHFName = ""
+										rqHFColon = false
+									}else{
+										rq := &RequestR{
+											RequestHeader: &RequestHeader{
+												RequestLine: rqLine,
+												HF: rqHF,
+											},
+											Reader: conn,
+										}
+										return rq, nil
+									}
+								}else{
+									buf.Write(b)
+								}
+
+							default:
+								buf.Write(b)
+						}
+					}
+					return nil, errors.New("Not Header Fields")
 				}else{
 					buf.Write(b)
 				}
@@ -107,4 +108,5 @@ func ReadRequest(conn net.Conn) (rq *RequestR, err error) {
 				buf.Write(b)
 		}
 	}
+	return nil, errors.New("Not Request")
 }
