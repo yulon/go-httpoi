@@ -50,7 +50,7 @@ func ReadRequest(conn net.Conn) (*RequestR, error) {
 					rqLine.HTTPVersion = buf.String()
 					buf.Reset()
 
-					if rqLine.HTTPVersion == "HTTP/1.1" {
+					if rqLine.HTTPVersion != "HTTP/1.1" {
 						return nil, errors.New("Protocol is not supported")
 					}
 
