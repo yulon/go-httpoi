@@ -1,4 +1,6 @@
-package chunked
+package httpoi
+
+var crlf = []byte("\r\n")
 
 func concat(d ...[]byte) []byte {
 	num := len(d)

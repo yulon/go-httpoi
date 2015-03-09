@@ -3,7 +3,6 @@ package httpoi
 import (
 	"io"
 	"strconv"
-	"github.com/yulon/httpoi/chunked"
 )
 
 type StatusLine struct{
@@ -41,9 +40,9 @@ func (rs *ResponseW) WriteHeaders(StatusCode int) (err error) {
 
 	if rs.Headers["Transfer-Encoding"] == "chunked" {
 		if rs.Headers["Content-Encoding"] == "gzip" {
-			rs.wc = chunked.NewGzipWriter(rs.wc)
+			rs.wc = NewChunkedGzipWriter(rs.wc)
 		}else{
-			rs.wc = chunked.NewWriter(rs.wc)
+			rs.wc = NewChunkedWriter(rs.wc)
 		}
 	}
 

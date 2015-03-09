@@ -1,4 +1,4 @@
-package chunked
+package httpoi
 
 import (
 	"compress/gzip"
