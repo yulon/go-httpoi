@@ -16,17 +16,9 @@ func (sl *StatusLine) Status(code int) {
 	sl.ReasonPhrase = ReasonPhrases[sl.StatusCode]
 }
 
-func (sl *StatusLine) MakeLine() string {
-	return sl.HTTPVersion + " " + strconv.Itoa(sl.StatusCode) + " " + sl.ReasonPhrase + "\r\n"
-}
-
 type ResponseHeader struct{
 	*StatusLine
-	Headers Headers
-}
-
-func (rsh *ResponseHeader) MakeHeaders() string {
-	return rsh.StatusLine.MakeLine() + rsh.Headers.MakeHeaders() + "\r\n"
+	Headers map[string]string
 }
 
 type ResponseW struct{
@@ -34,9 +26,18 @@ type ResponseW struct{
 	wc io.WriteCloser
 }
 
-func (rs *ResponseW) WriteHeaders(StatusCode int) (err error) {
-	rs.ResponseHeader.StatusLine.Status(StatusCode)
-	_, err = rs.wc.Write([]byte(rs.ResponseHeader.MakeHeaders()))
+func (rs *ResponseW) WriteHeaders(StatusCode int) {
+	rs.Status(StatusCode)
+	lw := NewLineWriter(rs.wc)
+
+	// Status Line
+	lw.Write([]byte(rs.HTTPVersion + " " + strconv.Itoa(rs.StatusCode) + " " + rs.ReasonPhrase))
+
+	// Headers
+	for name, value := range rs.Headers {
+		lw.Write([]byte(name + ": " + value)) // Header Field
+	}
+	lw.WriteEmpty() // Headers End
 
 	if rs.Headers["Transfer-Encoding"] == "chunked" {
 		if rs.Headers["Content-Encoding"] == "gzip" {
@@ -45,8 +46,6 @@ func (rs *ResponseW) WriteHeaders(StatusCode int) (err error) {
 			rs.wc = NewChunkedWriter(rs.wc)
 		}
 	}
-
-	return
 }
 
 func (rs *ResponseW) Write(data []byte) (int, error) {

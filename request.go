@@ -3,7 +3,6 @@ package httpoi
 import (
 	"io"
 	"errors"
-	"bytes"
 	"net"
 	//"fmt"
 )
@@ -14,9 +13,37 @@ type RequestLine struct{
 	HTTPVersion string
 }
 
+func ParseRequestLine(line []byte) (rl *RequestLine, err error) {
+	rl = &RequestLine{}
+	leng := len(line)
+	for i := leng - 1; i >= 0; i-- {
+		if line[i] == ' ' {
+			rl.HTTPVersion = string(line[i+1:])
+			if rl.HTTPVersion == "HTTP/1.1" {
+				for y := 0; y < leng; y++ {
+					if line[y] == ' ' {
+						if y != i {
+							rl.Method = string(line[:y])
+							rl.URI = string(line[y+1:i])
+						}else{
+							err = errors.New("Request Line token count mismatch")
+						}
+						return
+					}
+				}
+			}else{
+				err = errors.New("Protocol is not supported")
+				return
+			}
+		}
+	}
+	err = errors.New("Not Request")
+	return
+}
+
 type RequestHeader struct{
 	*RequestLine
-	Headers Headers
+	Headers map[string]string
 }
 
 type RequestR struct{
@@ -25,88 +52,30 @@ type RequestR struct{
 }
 
 func ReadRequest(conn net.Conn) (*RequestR, error) {
-	buf := bytes.NewBuffer(make([]byte, 0, 128))
+	lr := NewLineReader(conn)
 
-	// Read Request Line
-	rqLine := &RequestLine{}
-	rqLineTokens := make([]string, 2, 2)
-	rqLineNowToken := 0
-	b := make([]byte, 1, 1)
+	rqLine, err := ParseRequestLine(lr.Read())
+	if err != nil {
+		return nil, err
+	}
+
+	headers := map[string]string{}
 	for {
-		conn.Read(b)
-		switch b[0] {
-			case ' ':
-				rqLineTokens[rqLineNowToken] = buf.String()
-				buf.Reset()
-				rqLineNowToken++
-
-			case '\r':
-				conn.Read(b)
-				if b[0] == '\n' {
-					if rqLineNowToken != 2 {
-						return nil, errors.New("Request Line token count mismatch")
-					}
-
-					rqLine.HTTPVersion = buf.String()
-					buf.Reset()
-
-					if rqLine.HTTPVersion != "HTTP/1.1" {
-						return nil, errors.New("Protocol is not supported")
-					}
-
-					rqLine.Method = rqLineTokens[0]
-					rqLine.URI = rqLineTokens[1]
-
-					// Read Header Fields
-					rqHeaders := Headers{}
-					rqHeadersName := ""
-					rqHeadersColon := false
-					for {
-						conn.Read(b)
-						switch b[0] {
-							case ':':
-								if !rqHeadersColon {
-									rqHeadersColon = true
-									rqHeadersName = buf.String()
-									buf.Reset()
-								}else{
-									buf.Write(b)
-								}
-
-							case '\r':
-								conn.Read(b)
-								if b[0] == '\n' {
-									if rqHeadersColon {
-										rqHeaders[rqHeadersName] = trim(buf.String())
-										buf.Reset()
-										rqHeadersName = ""
-										rqHeadersColon = false
-									}else{
-										rq := &RequestR{
-											RequestHeader: &RequestHeader{
-												RequestLine: rqLine,
-												Headers: rqHeaders,
-											},
-											Reader: conn,
-										}
-										return rq, nil
-									}
-								}else{
-									buf.Write(b)
-								}
-
-							default:
-								buf.Write(b)
-						}
-					}
-					return nil, errors.New("Not Header Fields")
-				}else{
-					buf.Write(b)
-				}
-
-			default:
-				buf.Write(b)
+		line := lr.Read()
+		if len(line) == 0 {
+			return &RequestR{
+				RequestHeader: &RequestHeader{
+					RequestLine: rqLine,
+					Headers: headers,
+				},
+				Reader: conn,
+			}, nil
+		}else{
+			name, value := ParseHeaderField(line)
+			if name != "" {
+				headers[name] = value
+			}
 		}
 	}
-	return nil, errors.New("Not Request")
+	return nil, errors.New("Header Field incomplete")
 }
