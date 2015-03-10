@@ -18,7 +18,7 @@ func (sl *StatusLine) Status(code int) {
 
 type ResponseW struct{
 	line *StatusLine
-	Headers map[string]string
+	Headers Headers
 	wc io.WriteCloser
 }
 
@@ -30,10 +30,7 @@ func (rs *ResponseW) Start(StatusCode int) {
 	lw.Write([]byte(rs.line.HTTPVersion + " " + strconv.Itoa(rs.line.StatusCode) + " " + rs.line.ReasonPhrase))
 
 	// Headers
-	for name, value := range rs.Headers {
-		lw.Write([]byte(name + ": " + value)) // Header Field
-	}
-	lw.WriteEmpty() // Headers End
+	rs.Headers.WriteTo(lw)
 
 	if rs.Headers["Transfer-Encoding"] == "chunked" {
 		if rs.Headers["Content-Encoding"] == "gzip" {
