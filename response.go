@@ -16,22 +16,18 @@ func (sl *StatusLine) Status(code int) {
 	sl.ReasonPhrase = ReasonPhrases[sl.StatusCode]
 }
 
-type ResponseHeader struct{
-	*StatusLine
-	Headers map[string]string
-}
-
 type ResponseW struct{
-	*ResponseHeader
+	line *StatusLine
+	Headers map[string]string
 	wc io.WriteCloser
 }
 
-func (rs *ResponseW) WriteHeaders(StatusCode int) {
-	rs.Status(StatusCode)
+func (rs *ResponseW) Start(StatusCode int) {
 	lw := NewLineWriter(rs.wc)
 
 	// Status Line
-	lw.Write([]byte(rs.HTTPVersion + " " + strconv.Itoa(rs.StatusCode) + " " + rs.ReasonPhrase))
+	rs.line.Status(StatusCode)
+	lw.Write([]byte(rs.line.HTTPVersion + " " + strconv.Itoa(rs.line.StatusCode) + " " + rs.line.ReasonPhrase))
 
 	// Headers
 	for name, value := range rs.Headers {

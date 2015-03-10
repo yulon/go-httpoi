@@ -31,15 +31,13 @@ func saw(conn net.Conn, h SeverHandler) {
 	rq, err := ReadRequest(conn)
 	if err == nil {
 		rs := &ResponseW{
-			ResponseHeader: &ResponseHeader{
-				StatusLine: &StatusLine{
-					HTTPVersion: rq.HTTPVersion,
-				},
-				Headers: map[string]string{
-					"Date": time.Now().Format(time.RFC1123),
-					"Server": "HTTPOI",
-					"X-Powered-By": lang,
-				},
+			line: &StatusLine{
+				HTTPVersion: rq.HTTPVersion,
+			},
+			Headers: map[string]string{
+				"Date": time.Now().Format(time.RFC1123),
+				"Server": "HTTPOI",
+				"X-Powered-By": lang,
 			},
 			wc: &writeNopCloser{conn},
 		}

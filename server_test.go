@@ -9,7 +9,7 @@ func Test_Sever(t *testing.T) {
 		rs.Headers["Content-Type"] = "text/html"
 		rs.Headers["Transfer-Encoding"] = "chunked"
 		rs.Headers["Content-Encoding"] = "gzip"
-		rs.WriteHeaders(StatusOK)
+		rs.Start(StatusOK)
 		rs.WriteString("Hello, World!")
 	})
 }

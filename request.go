@@ -41,13 +41,9 @@ func ParseRequestLine(line []byte) (rl *RequestLine, err error) {
 	return
 }
 
-type RequestHeader struct{
+type RequestR struct{
 	*RequestLine
 	Headers map[string]string
-}
-
-type RequestR struct{
-	*RequestHeader
 	io.Reader
 }
 
@@ -64,10 +60,8 @@ func ReadRequest(conn net.Conn) (*RequestR, error) {
 		line := lr.Read()
 		if len(line) == 0 {
 			return &RequestR{
-				RequestHeader: &RequestHeader{
-					RequestLine: rqLine,
-					Headers: headers,
-				},
+				RequestLine: rqLine,
+				Headers: headers,
 				Reader: conn,
 			}, nil
 		}else{
